@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  BOOKED
+  COMPLETED
+  LOST
+}
+
+enum Urgency {
+  EMERGENCY
+  URGENT
+  ROUTINE
+}
+
+enum CallStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  VOICEMAIL
+}
+
+enum ConversationStep {
+  GREETING
+  NAME
+  PHONE
+  JOB_TYPE
+  DESCRIPTION
+  URGENCY
+  ADDRESS
+  CONFIRMATION
+  COMPLETE
+}
+
+enum UserRole {
+  OWNER
+  MEMBER
+}
+
+// ─────────────────────────────────────────────
+// User
+// ─────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  firstName   String?
+  lastName    String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships BusinessMember[]
+
+  @@index([clerkUserId])
+}
+
+// ─────────────────────────────────────────────
+// Business (Tenant)
+// ─────────────────────────────────────────────
+
+model Business {
+  id                String   @id @default(cuid())
+  clerkOrgId        String?  @unique
+  name              String
+  slug              String   @unique
+  ownerEmail        String
+  ownerPhone        String
+  twilioNumberSid   String?
+  twilioPhoneNumber String?  @unique
+  plan              Plan     @default(FREE)
+  isActive          Boolean  @default(true)
+  trialEndsAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  members      BusinessMember[]
+  settings     BusinessSettings?
+  leads        Lead[]
+  calls        Call[]
+  conversations Conversation[]
+
+  @@index([twilioPhoneNumber])
+  @@index([slug])
+}
+
+// ─────────────────────────────────────────────
+// Business Membership (multi-user per tenant)
+// ─────────────────────────────────────────────
+
+model BusinessMember {
+  id         String   @id @default(cuid())
+  businessId String
+  userId     String
+  role       UserRole @default(MEMBER)
+  joinedAt   DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+  @@index([businessId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// Business Settings
+// ─────────────────────────────────────────────
+
+model BusinessSettings {
+  id                String   @id @default(cuid())
+  businessId        String   @unique
+  greetingMessage   String   @default("Hello, thanks for calling. How can I help you today?")
+  afterHoursMessage String   @default("We're currently closed. Leave your details and we'll call you back.")
+  timezone          String   @default("Europe/London")
+  openingHours      Json     @default("{\"mon\":\"08:00-18:00\",\"tue\":\"08:00-18:00\",\"wed\":\"08:00-18:00\",\"thu\":\"08:00-18:00\",\"fri\":\"08:00-18:00\",\"sat\":\"09:00-14:00\",\"sun\":\"closed\"}")
+  servicesOffered   String[] @default(["boiler repair", "leak fix", "drain unblocking", "heating", "general plumbing"])
+  notifyPhone       String?
+  notifyEmail       String?
+  smsTemplate       String   @default("New lead from {name} ({phone}): {jobType} — {urgency}. Address: {address}.")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// Call
+// ─────────────────────────────────────────────
+
+model Call {
+  id                String     @id @default(cuid())
+  businessId        String
+  twilioCallSid     String     @unique
+  callerPhone       String
+  durationSeconds   Int?
+  recordingUrl      String?
+  status            CallStatus @default(IN_PROGRESS)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lead         Lead?
+  conversation Conversation?
+
+  @@index([businessId])
+  @@index([twilioCallSid])
+  @@index([businessId, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// Conversation (AI session state, 1-to-1 with Call)
+// ─────────────────────────────────────────────
+
+model Conversation {
+  id            String           @id @default(cuid())
+  businessId    String
+  callId        String           @unique
+  twilioCallSid String           @unique
+  messages      Json             @default("[]")
+  collectedData Json             @default("{}")
+  currentStep   ConversationStep @default(GREETING)
+  isComplete    Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  call     Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([twilioCallSid])
+}
+
+// ─────────────────────────────────────────────
+// Lead
+// ─────────────────────────────────────────────
+
+model Lead {
+  id           String     @id @default(cuid())
+  businessId   String
+  callId       String?    @unique
+  callerName   String?
+  callerPhone  String
+  jobType      String?
+  description  String?
+  urgency      Urgency    @default(ROUTINE)
+  address      String?
+  postcode     String?
+  status       LeadStatus @default(NEW)
+  notes        String?
+  smsSentAt    DateTime?
+  emailSentAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  call     Call?    @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, urgency])
+  @@index([businessId, createdAt])
+}
