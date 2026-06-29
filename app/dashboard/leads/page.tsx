@@ -1,32 +1,60 @@
+import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
-import { LeadStatus } from '@prisma/client'
+import type { Lead } from '@prisma/client'
+import { LeadRow } from './_components/lead-row'
 
-const STATUS_STYLES: Record<LeadStatus, string> = {
-  NEW: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-  CONTACTED: 'bg-yellow-50 text-yellow-700 ring-yellow-600/20',
-  BOOKED: 'bg-purple-50 text-purple-700 ring-purple-600/20',
-  COMPLETED: 'bg-green-50 text-green-700 ring-green-600/20',
-  LOST: 'bg-zinc-100 text-zinc-500 ring-zinc-500/20',
+function startOfDay(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
-function formatDate(date: Date) {
-  return date.toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+function subDays(date: Date, n: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() - n)
+  return d
+}
+
+function groupLeads(leads: Lead[]): { label: string; leads: Lead[] }[] {
+  const now = new Date()
+  const todayStart = startOfDay(now)
+  const yesterdayStart = subDays(todayStart, 1)
+  const twoDaysAgoStart = subDays(todayStart, 2)
+  const sevenDaysAgoStart = subDays(todayStart, 7)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const groups: { label: string; leads: Lead[] }[] = [
+    { label: 'Today', leads: [] },
+    { label: 'Yesterday', leads: [] },
+    { label: 'Last 48 Hours', leads: [] },
+    { label: 'Last 7 Days', leads: [] },
+    { label: 'This Month', leads: [] },
+    { label: 'Older Leads', leads: [] },
+  ]
+
+  for (const lead of leads) {
+    const t = lead.createdAt.getTime()
+    if (t >= todayStart.getTime()) groups[0].leads.push(lead)
+    else if (t >= yesterdayStart.getTime()) groups[1].leads.push(lead)
+    else if (t >= twoDaysAgoStart.getTime()) groups[2].leads.push(lead)
+    else if (t >= sevenDaysAgoStart.getTime()) groups[3].leads.push(lead)
+    else if (t >= monthStart.getTime()) groups[4].leads.push(lead)
+    else groups[5].leads.push(lead)
+  }
+
+  return groups.filter(g => g.leads.length > 0)
 }
 
 export default async function LeadsPage() {
-  const businessId = process.env.DEV_BUSINESS_ID
-  const leads = businessId
+  const business = await getCurrentBusiness()
+  const leads = business
     ? await db.lead.findMany({
-        where: { businessId },
-        orderBy: { createdAt: 'desc' },
+        where: { businessId: business.id },
+        orderBy: [{ urgency: 'desc' }, { createdAt: 'desc' }],
       })
     : []
+
+  const grouped = groupLeads(leads)
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -41,45 +69,49 @@ export default async function LeadsPage() {
           <p className="mt-1 text-sm text-zinc-500">Leads will appear here once your AI answers a call.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Issue</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Postcode</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Phone</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Received</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {leads.map(lead => (
-                <tr key={lead.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-zinc-900">
-                    {lead.callerName ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600 max-w-xs truncate">
-                    {lead.description ?? lead.jobType ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-zinc-600">
-                    {lead.postcode ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {lead.callerPhone}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[lead.status]}`}>
-                      {lead.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">
-                    {formatDate(lead.createdAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-8">
+          {grouped.map(group => (
+            <div key={group.label}>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">{group.label}</h2>
+              <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-100 bg-zinc-50">
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Urgency</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Name</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Issue</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Postcode</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Phone</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Action</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-500">Received</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {group.leads.map(lead => (
+                      <LeadRow
+                        key={lead.id}
+                        id={lead.id}
+                        callerName={lead.callerName}
+                        callerPhone={lead.callerPhone}
+                        description={lead.description}
+                        jobType={lead.jobType}
+                        postcode={lead.postcode}
+                        urgency={lead.urgency}
+                        status={lead.status}
+                        contacted={lead.contacted}
+                        contactedAt={lead.contactedAt}
+                        followUpCount={lead.followUpCount}
+                        followUpStopped={lead.followUpStopped}
+                        nextFollowUpAt={lead.nextFollowUpAt}
+                        createdAt={lead.createdAt}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

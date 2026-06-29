@@ -8,13 +8,13 @@ const isPublicRoute = createRouteMatcher([
   '/api/debug',
   '/api/receptionist/(.*)',
   '/api/twilio/(.*)',
+  '/api/tts(.*)',
+  '/api/tts',
   '/api/webhooks/(.*)',
+  '/api/cron/(.*)',
 ])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth()
-  const cookies = req.cookies.getAll().map(c => c.name).join(', ')
-  console.log(`[proxy] ${req.nextUrl.pathname} | userId=${userId ?? 'null'} | cookies=${cookies || 'none'}`)
   if (!isPublicRoute(req)) {
     await auth.protect()
   }

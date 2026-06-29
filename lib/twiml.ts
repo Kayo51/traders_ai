@@ -1,4 +1,3 @@
-const VOICE = 'Polly.Amy-Neural'
 const LANGUAGE = 'en-GB'
 
 function xml(content: string): Response {
@@ -8,33 +7,26 @@ function xml(content: string): Response {
   )
 }
 
-function say(text: string): string {
-  return `<Say voice="${VOICE}" language="${LANGUAGE}">${escapeXml(text)}</Say>`
+function playById(id: string): string {
+  return `<Play>${process.env.NEXT_PUBLIC_APP_URL}/api/tts?id=${id}</Play>`
 }
 
-export function gatherResponse(text: string, actionUrl: string): Response {
+export function gatherResponse(audioId: string, actionUrl: string): Response {
   return xml(`
-    ${say(text)}
-    <Gather input="speech" action="${actionUrl}" speechTimeout="auto" timeout="8" language="${LANGUAGE}">
+    <Gather input="speech" action="${actionUrl}" speechTimeout="auto" timeout="10" language="${LANGUAGE}">
+      ${playById(audioId)}
     </Gather>
-    ${say("Sorry, I didn't catch that. Please try calling back.")}
-    <Hangup/>
+    <Redirect method="POST">${actionUrl}</Redirect>
   `)
 }
 
-export function hangupResponse(text: string): Response {
-  return xml(`${say(text)}<Hangup/>`)
+export function hangupResponse(audioId: string): Response {
+  return xml(`${playById(audioId)}<Hangup/>`)
 }
 
 export function errorResponse(): Response {
-  return xml(`${say("Sorry, something went wrong on our end. Please try calling back shortly.")}<Hangup/>`)
-}
-
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
+  return xml(`
+    <Say language="${LANGUAGE}">Sorry, something went wrong. Please try calling back shortly.</Say>
+    <Hangup/>
+  `)
 }

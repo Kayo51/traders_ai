@@ -1,35 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import db from '@/lib/db'
-import { CallStatus } from '@prisma/client'
 
-const STATUS_MAP: Record<string, CallStatus> = {
-  completed: 'COMPLETED',
-  failed: 'FAILED',
-  busy: 'FAILED',
-  'no-answer': 'NO_ANSWER',
-  canceled: 'FAILED',
+const STATUS_MAP: Record<string, string> = {
+  completed:  'COMPLETED',
+  busy:       'NO_ANSWER',
+  'no-answer':'NO_ANSWER',
+  failed:     'FAILED',
+  canceled:   'FAILED',
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const form = await req.formData()
-    const callSid = form.get('CallSid') as string
-    const callStatus = form.get('CallStatus') as string
-    const duration = form.get('CallDuration') as string | null
+  const form = await req.formData()
+  const callSid        = form.get('CallSid') as string
+  const callStatus     = (form.get('CallStatus') as string ?? '').toLowerCase()
+  const durationStr    = form.get('CallDuration') as string | null
 
-    const status = STATUS_MAP[callStatus]
-    if (!status) return new NextResponse(null, { status: 204 })
+  const status = STATUS_MAP[callStatus]
+  if (!status || !callSid) return new Response('ok')
 
-    await db.call.update({
-      where: { twilioCallSid: callSid },
-      data: {
-        status,
-        durationSeconds: duration ? parseInt(duration, 10) : null,
-      },
-    })
-  } catch (err) {
-    console.error('[twilio/status]', err)
-  }
+  await db.call.updateMany({
+    where:  { twilioCallSid: callSid },
+    data: {
+      status: status as any,
+      durationSeconds: durationStr ? parseInt(durationStr, 10) : undefined,
+    },
+  })
 
-  return new NextResponse(null, { status: 204 })
+  return new Response('ok')
 }

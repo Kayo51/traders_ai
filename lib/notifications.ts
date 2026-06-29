@@ -8,6 +8,19 @@ type NotifyPayload = {
   settings: BusinessSettings
 }
 
+export async function sendCallerConfirmation(lead: Lead, business: Business) {
+  const sid = process.env.TWILIO_ACCOUNT_SID
+  const token = process.env.TWILIO_AUTH_TOKEN
+  const from = business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
+  if (!sid || !token || !from) return
+
+  const firstName = lead.callerName?.split(' ')[0] ?? 'there'
+  const body = `Hi ${firstName}, thanks for calling ${business.name}. We've received your details and will call you back shortly.`
+
+  const client = twilio(sid, token)
+  await client.messages.create({ from, to: lead.callerPhone, body })
+}
+
 export async function sendLeadNotifications(payload: NotifyPayload) {
   const results = await Promise.allSettled([
     sendSMS(payload),
@@ -30,11 +43,19 @@ async function sendSMS({ lead, business, settings }: NotifyPayload) {
 
   if (!sid || !token || !from) return
 
-  const to = settings.notifyPhone ?? business.ownerPhone
+  const to = settings.notifyPhone ?? business.ownerPhone ?? ''
+  if (!to) return
   const body = formatSMS(settings.smsTemplate, lead)
 
   const client = twilio(sid, token)
   await client.messages.create({ from, to, body })
+}
+
+const URGENCY_EMOJI: Record<string, string> = {
+  LOW: '🟢 Low',
+  MODERATE: '🟡 Moderate',
+  HIGH: '🟠 High',
+  VERY_URGENT: '🔴 Very Urgent',
 }
 
 function formatSMS(template: string, lead: Lead): string {
@@ -42,7 +63,8 @@ function formatSMS(template: string, lead: Lead): string {
     .replace('{name}', lead.callerName ?? 'Unknown')
     .replace('{phone}', lead.callerPhone)
     .replace('{jobType}', lead.jobType ?? lead.description ?? 'Not specified')
-    .replace('{urgency}', lead.urgency.toLowerCase())
+    .replace('{urgency}', URGENCY_EMOJI[lead.urgency] ?? lead.urgency)
+    .replace('{postcode}', lead.postcode ?? 'Not provided')
     .replace('{address}', [lead.postcode, lead.address].filter(Boolean).join(', ') || 'Not provided')
 }
 
@@ -66,11 +88,11 @@ async function sendEmail({ lead, business, settings }: NotifyPayload) {
 
 function emailHtml(lead: Lead, business: Business): string {
   const rows = [
+    ['Urgency', URGENCY_EMOJI[lead.urgency] ?? lead.urgency],
     ['Name', lead.callerName ?? '—'],
     ['Phone', lead.callerPhone],
     ['Postcode', lead.postcode ?? '—'],
     ['Issue', lead.description ?? lead.jobType ?? '—'],
-    ['Urgency', lead.urgency],
     ['Received', new Date(lead.createdAt).toLocaleString('en-GB', { timeZone: 'Europe/London' })],
   ]
 

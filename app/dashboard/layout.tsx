@@ -1,6 +1,14 @@
+import { redirect } from 'next/navigation'
+import { getCurrentBusiness } from '@/lib/onboarding'
 import Nav from './_components/nav'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const business = await getCurrentBusiness()
+
+  if (!business || !business.onboardingCompleted) {
+    redirect('/onboarding')
+  }
+
   return (
     <div className="flex h-screen bg-zinc-50">
       {/* Sidebar */}

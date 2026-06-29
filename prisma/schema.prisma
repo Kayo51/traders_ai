@@ -16,6 +16,45 @@ enum Plan {
   ENTERPRISE
 }
 
+enum SubscriptionPlan {
+  STARTER
+  ESSENTIAL
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum ReceptionistVoice {
+  EMMA
+  SARAH
+  JAMES
+  OLIVER
+}
+
+enum ReceptionistAccent {
+  BRITISH
+  AMERICAN
+  AUSTRALIAN
+  IRISH
+  SCOTTISH
+}
+
+enum ReceptionistTone {
+  FRIENDLY
+  PROFESSIONAL
+  LUXURY
+  CASUAL
+}
+
+enum BusinessType {
+  PLUMBER
+  ELECTRICIAN
+  HEATING_ENGINEER
+  BUILDER
+  LOCKSMITH
+  CLEANING_COMPANY
+  HVAC
+}
+
 enum LeadStatus {
   NEW
   CONTACTED
@@ -25,9 +64,10 @@ enum LeadStatus {
 }
 
 enum Urgency {
-  EMERGENCY
-  URGENT
-  ROUTINE
+  LOW
+  MODERATE
+  HIGH
+  VERY_URGENT
 }
 
 enum CallStatus {
@@ -79,24 +119,38 @@ model User {
 // ─────────────────────────────────────────────
 
 model Business {
-  id                String   @id @default(cuid())
-  clerkOrgId        String?  @unique
-  name              String
-  slug              String   @unique
-  ownerEmail        String
-  ownerPhone        String
-  twilioNumberSid   String?
-  twilioPhoneNumber String?  @unique
-  plan              Plan     @default(FREE)
-  isActive          Boolean  @default(true)
-  trialEndsAt       DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String            @id @default(cuid())
+  clerkOrgId          String?           @unique
+  name                String
+  slug                String            @unique
+  ownerEmail          String
+  ownerPhone          String?
+  twilioNumberSid     String?
+  twilioPhoneNumber   String?           @unique
+  plan                Plan              @default(FREE)
+  isActive            Boolean           @default(true)
+  trialEndsAt         DateTime?
 
-  members      BusinessMember[]
-  settings     BusinessSettings?
-  leads        Lead[]
-  calls        Call[]
+  // Onboarding fields
+  onboardingCompleted Boolean           @default(false)
+  subscriptionPlan    SubscriptionPlan?
+  businessType        BusinessType?
+  businessPhone       String?
+  emergencyService    Boolean           @default(false)
+  openingHoursText    String?
+  receptionistName    String?
+  receptionistVoice   ReceptionistVoice?
+  receptionistAccent  ReceptionistAccent?
+  receptionistTone    ReceptionistTone?
+  receptionistGender  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       BusinessMember[]
+  settings      BusinessSettings?
+  leads         Lead[]
+  calls         Call[]
   conversations Conversation[]
 
   @@index([twilioPhoneNumber])
@@ -136,7 +190,12 @@ model BusinessSettings {
   servicesOffered   String[] @default(["boiler repair", "leak fix", "drain unblocking", "heating", "general plumbing"])
   notifyPhone       String?
   notifyEmail       String?
-  smsTemplate       String   @default("New lead from {name} ({phone}): {jobType} — {urgency}. Address: {address}.")
+  smsTemplate       String   @default("🚨 NEW LEAD\nUrgency: {urgency}\nCustomer: {name}\nIssue: {jobType}\nPostcode: {postcode}\nPhone: {phone}")
+  customerFollowUpEnabled   Boolean @default(true)
+  followUpSmsEnabled        Boolean @default(true)
+  followUpEmailEnabled      Boolean @default(true)
+  followUpDelays            Json    @default("[5,24,36,48]")
+  followUpMaxDays           Int     @default(7)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -148,15 +207,15 @@ model BusinessSettings {
 // ─────────────────────────────────────────────
 
 model Call {
-  id                String     @id @default(cuid())
-  businessId        String
-  twilioCallSid     String     @unique
-  callerPhone       String
-  durationSeconds   Int?
-  recordingUrl      String?
-  status            CallStatus @default(IN_PROGRESS)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  businessId      String
+  twilioCallSid   String     @unique
+  callerPhone     String
+  durationSeconds Int?
+  recordingUrl    String?
+  status          CallStatus @default(IN_PROGRESS)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   lead         Lead?
@@ -195,22 +254,30 @@ model Conversation {
 // ─────────────────────────────────────────────
 
 model Lead {
-  id           String     @id @default(cuid())
-  businessId   String
-  callId       String?    @unique
-  callerName   String?
-  callerPhone  String
-  jobType      String?
-  description  String?
-  urgency      Urgency    @default(ROUTINE)
-  address      String?
-  postcode     String?
-  status       LeadStatus @default(NEW)
-  notes        String?
-  smsSentAt    DateTime?
-  emailSentAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id          String     @id @default(cuid())
+  businessId  String
+  callId      String?    @unique
+  callerName  String?
+  callerPhone String
+  jobType     String?
+  description String?
+  urgency     Urgency    @default(LOW)
+  address     String?
+  postcode    String?
+  status      LeadStatus @default(NEW)
+  notes       String?
+  contacted          Boolean   @default(false)
+  contactedAt        DateTime?
+  contactedByUserId  String?
+  followUpEnabled    Boolean   @default(true)
+  followUpCount      Int       @default(0)
+  lastFollowUpAt     DateTime?
+  nextFollowUpAt     DateTime?
+  followUpStopped    Boolean   @default(false)
+  smsSentAt   DateTime?
+  emailSentAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   call     Call?    @relation(fields: [callId], references: [id], onDelete: SetNull)

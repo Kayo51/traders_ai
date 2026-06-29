@@ -1,8 +1,14 @@
 import { NextRequest } from 'next/server'
+import { randomUUID } from 'crypto'
 import db from '@/lib/db'
 import { chat, type Message } from '@/lib/ai/receptionist'
-import { sendLeadNotifications } from '@/lib/notifications'
+import { generateAudio } from '@/lib/tts'
+import { storeAudio } from '@/lib/audio-cache'
+import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notifications'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
+import { normaliseUKPhone } from '@/lib/phone-utils'
+
+const MAX_EMPTY_RETRIES = 3
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,59 +21,85 @@ export async function POST(req: NextRequest) {
       include: { business: { include: { settings: true } } },
     })
 
-    if (!conversation) {
-      return errorResponse()
-    }
+    if (!conversation) return errorResponse()
 
     const gatherUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/gather`
+    const farewellUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/farewell`
 
-    // No speech captured — prompt again
+    const meta = (conversation.collectedData as Record<string, unknown>) ?? {}
+
+    // ── No speech captured ──────────────────────────────────────────────────
     if (!speechResult?.trim()) {
+      const emptyCount = ((meta.emptyRetries as number) ?? 0) + 1
+
+      // After 3 silent attempts, give up gracefully
+      if (emptyCount >= MAX_EMPTY_RETRIES) {
+        const audioId = randomUUID()
+        const msg = "I'm sorry, I'm having trouble hearing you. Please try calling back when you're in a quieter spot. Goodbye!"
+        await generateAudio(msg).then(buf => storeAudio(audioId, buf))
+        return hangupResponse(audioId)
+      }
+
+      // Replay last assistant message with a gentle prompt
       const lastAssistant = (conversation.messages as Message[])
         .filter(m => m.role === 'assistant')
         .at(-1)
-      const retry = lastAssistant?.content ?? "Sorry, I didn't catch that. Could you say that again?"
-      return gatherResponse(retry, gatherUrl)
+
+      const retry = emptyCount === 1
+        ? `Sorry, I didn't quite catch that. ${lastAssistant?.content ?? 'Could you say that again?'}`
+        : `I'm still having trouble hearing you. Could you speak up a little? ${lastAssistant?.content ?? ''}`
+
+      const audioId = randomUUID()
+      await Promise.all([
+        generateAudio(retry).then(buf => storeAudio(audioId, buf)),
+        db.conversation.update({
+          where: { id: conversation.id },
+          data: { collectedData: { ...meta, emptyRetries: emptyCount } },
+        }),
+      ])
+      return gatherResponse(audioId, gatherUrl)
     }
 
-    // Build history and get AI response
+    // Speech received — reset the empty-retry counter
+    const cleanMeta = { ...meta, emptyRetries: 0 }
+
+    // ── Build history and call AI ───────────────────────────────────────────
     const history = conversation.messages as Message[]
-    const updatedMessages: Message[] = [
-      ...history,
-      { role: 'user', content: speechResult },
-    ]
-
+    const updatedMessages: Message[] = [...history, { role: 'user', content: speechResult }]
     const result = await chat(updatedMessages)
+    const newMessages: Message[] = [...updatedMessages, { role: 'assistant', content: result.reply }]
 
-    const newMessages: Message[] = [
-      ...updatedMessages,
-      { role: 'assistant', content: result.reply },
-    ]
-
-    // Save updated conversation
-    await db.conversation.update({
-      where: { id: conversation.id },
-      data: {
-        messages: newMessages,
-        isComplete: result.complete,
-        currentStep: result.complete ? 'COMPLETE' : conversation.currentStep,
-      },
-    })
+    // Pre-generate audio and save conversation in parallel
+    const audioId = randomUUID()
+    await Promise.all([
+      generateAudio(result.reply).then(buf => storeAudio(audioId, buf)),
+      db.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          messages: newMessages,
+          collectedData: cleanMeta,
+          isComplete: result.complete,
+          currentStep: result.complete ? 'COMPLETE' : conversation.currentStep,
+        },
+      }),
+    ])
 
     if (result.complete) {
-      // Save lead
       const lead = await db.lead.create({
         data: {
           businessId: conversation.businessId,
           callId: conversation.callId,
           callerName: result.lead.name,
-          callerPhone: result.lead.phone,
-          postcode: result.lead.postcode,
+          callerPhone: normaliseUKPhone(result.lead.phone),
+          postcode: result.lead.postcode.toUpperCase(),
           description: result.lead.issue,
+          urgency: result.lead.urgency as any,
         },
       })
 
-      // SMS + email — fire and forget
+      sendCallerConfirmation(lead, conversation.business)
+        .catch(err => console.error('[gather] caller SMS error:', err))
+
       if (conversation.business.settings) {
         sendLeadNotifications({
           lead,
@@ -76,10 +108,31 @@ export async function POST(req: NextRequest) {
         }).catch(err => console.error('[gather] notification error:', err))
       }
 
-      return hangupResponse(result.reply)
+      // Set first follow-up time based on business settings
+      const firstDelay = conversation.business.settings
+        ? (() => {
+            try {
+              const d = JSON.parse(conversation.business.settings.followUpDelays as string)
+              return Array.isArray(d) ? Number(d[0]) : 5
+            } catch { return 5 }
+          })()
+        : 5
+
+      const nextFollowUpAt = conversation.business.settings?.customerFollowUpEnabled !== false
+        ? new Date(lead.createdAt.getTime() + firstDelay * 3600000)
+        : null
+
+      if (nextFollowUpAt) {
+        await db.lead.update({
+          where: { id: lead.id },
+          data: { nextFollowUpAt },
+        })
+      }
+
+      return gatherResponse(audioId, farewellUrl)
     }
 
-    return gatherResponse(result.reply, gatherUrl)
+    return gatherResponse(audioId, gatherUrl)
   } catch (err) {
     console.error('[twilio/gather]', err)
     return errorResponse()

@@ -1,13 +1,7 @@
+import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
-import { CallStatus } from '@prisma/client'
-
-const STATUS_STYLES: Record<CallStatus, string> = {
-  IN_PROGRESS: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-  COMPLETED: 'bg-green-50 text-green-700 ring-green-600/20',
-  FAILED: 'bg-red-50 text-red-700 ring-red-600/20',
-  NO_ANSWER: 'bg-zinc-100 text-zinc-500 ring-zinc-500/20',
-  VOICEMAIL: 'bg-yellow-50 text-yellow-700 ring-yellow-600/20',
-}
+import { UrgencyBadge } from '@/components/ui/urgency-badge'
+import { CallStatusCell } from './_components/call-status-cell'
 
 function formatDuration(seconds: number | null): string {
   if (!seconds) return '—'
@@ -18,19 +12,16 @@ function formatDuration(seconds: number | null): string {
 
 function formatDate(date: Date) {
   return date.toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   })
 }
 
 export default async function CallsPage() {
-  const businessId = process.env.DEV_BUSINESS_ID
-  const calls = businessId
+  const business = await getCurrentBusiness()
+  const calls = business
     ? await db.call.findMany({
-        where: { businessId },
+        where: { businessId: business.id },
         orderBy: { createdAt: 'desc' },
         include: { lead: true },
       })
@@ -55,6 +46,7 @@ export default async function CallsPage() {
               <tr className="border-b border-zinc-100 bg-zinc-50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Caller</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Lead name</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-500">Urgency</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Duration</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Date</th>
@@ -65,11 +57,12 @@ export default async function CallsPage() {
                 <tr key={call.id} className="hover:bg-zinc-50 transition-colors">
                   <td className="px-4 py-3 font-mono text-zinc-600">{call.callerPhone}</td>
                   <td className="px-4 py-3 text-zinc-900">{call.lead?.callerName ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {call.lead ? <UrgencyBadge urgency={call.lead.urgency} /> : <span className="text-zinc-400">—</span>}
+                  </td>
                   <td className="px-4 py-3 text-zinc-600">{formatDuration(call.durationSeconds)}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[call.status]}`}>
-                      {call.status.replace('_', ' ')}
-                    </span>
+                    <CallStatusCell callId={call.id} initialStatus={call.status} />
                   </td>
                   <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{formatDate(call.createdAt)}</td>
                 </tr>
