@@ -7,6 +7,7 @@ import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { isPresenceCheck } from '@/lib/phone-utils'
+import { markCallCompleted } from '@/lib/call-utils'
 
 const bookingUrl  = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/booking`
 const farewellUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/farewell`

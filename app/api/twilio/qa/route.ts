@@ -7,6 +7,7 @@ import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { isPresenceCheck } from '@/lib/phone-utils'
+import { markCallCompleted } from '@/lib/call-utils'
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,7 +43,10 @@ export async function POST(req: NextRequest) {
       const qaRetries = ((meta.qaRetries as number) ?? 0) + 1
       if (qaRetries >= 3) {
         const audioId = randomUUID()
-        await generateAudio("I'm sorry, I can't hear you clearly. The plumber will call you back shortly. Goodbye!").then(buf => storeAudio(audioId, buf))
+        await Promise.all([
+          generateAudio("I'm sorry, I can't hear you clearly. The plumber will call you back shortly. Goodbye!").then(buf => storeAudio(audioId, buf)),
+          markCallCompleted(callSid),
+        ])
         return hangupResponse(audioId)
       }
       await db.conversation.update({
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest) {
     ])
 
     if (result.done) {
+      await markCallCompleted(callSid)
       return hangupResponse(audioId)
     }
 

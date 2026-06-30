@@ -7,6 +7,7 @@ import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse } from '@/lib/twiml'
 import { isPresenceCheck } from '@/lib/phone-utils'
+import { markCallCompleted } from '@/lib/call-utils'
 
 const YES_PATTERN = /\b(yes|yeah|yep|yup|please|actually|there is|something else|one more|also|and|sure|go on|what about)\b/i
 // Catches direct questions — starts with a question word OR ends with ?
@@ -55,7 +56,11 @@ export async function POST(req: NextRequest) {
           }),
         ])
 
-        return result.done ? hangupResponse(audioId) : gatherResponse(audioId, qaUrl)
+        if (result.done) {
+          await markCallCompleted(callSid)
+          return hangupResponse(audioId)
+        }
+        return gatherResponse(audioId, qaUrl)
       }
     } catch (err) {
       console.error('[farewell] inline QA error:', err)
@@ -74,6 +79,9 @@ export async function POST(req: NextRequest) {
   }
 
   const text = "Perfect. The plumber will be in touch very soon. Take care, goodbye!"
-  await generateAudio(text).then(buf => storeAudio(audioId, buf))
+  await Promise.all([
+    generateAudio(text).then(buf => storeAudio(audioId, buf)),
+    markCallCompleted(callSid),
+  ])
   return hangupResponse(audioId)
 }

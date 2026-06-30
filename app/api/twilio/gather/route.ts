@@ -8,6 +8,7 @@ import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notificatio
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { normaliseUKPhone, isPresenceCheck } from '@/lib/phone-utils'
 import { getAvailableSlots, buildSlotOffer } from '@/lib/calendar'
+import { markCallCompleted } from '@/lib/call-utils'
 
 const MAX_EMPTY_RETRIES = 3
 
@@ -37,8 +38,10 @@ export async function POST(req: NextRequest) {
       // After 3 silent attempts, give up gracefully
       if (emptyCount >= MAX_EMPTY_RETRIES) {
         const audioId = randomUUID()
-        const msg = "I'm sorry, I'm having trouble hearing you. Please try calling back when you're in a quieter spot. Goodbye!"
-        await generateAudio(msg).then(buf => storeAudio(audioId, buf))
+        await Promise.all([
+          generateAudio("I'm sorry, I'm having trouble hearing you. Please try calling back when you're in a quieter spot. Goodbye!").then(buf => storeAudio(audioId, buf)),
+          markCallCompleted(callSid),
+        ])
         return hangupResponse(audioId)
       }
 
