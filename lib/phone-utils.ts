@@ -1,3 +1,9 @@
+const PRESENCE_CHECK_RE = /^\s*(hello+|hey+|hi+|hiya+|yoo+|oi+|yo+)[\s?!.]*$|are\s+you\s+(still\s+)?(there|listening|here|with\s+me)|you\s+still\s+(there|here|with\s+me)|can\s+you\s+hear\s+me|(still|you)\s+there|anyone\s+there|is\s+(someone|anyone)\s+there|did\s+you\s+(get\s+that|hear\s+(me|that))|hello\s*\??$/i
+
+export function isPresenceCheck(speech: string): boolean {
+  return PRESENCE_CHECK_RE.test(speech.trim())
+}
+
 // Converts UK phone numbers spoken/typed in any format to E.164
 export function normaliseUKPhone(raw: string): string {
   // Strip all spaces, dashes, brackets

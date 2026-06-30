@@ -6,6 +6,7 @@ import type { Message } from '@/lib/ai/receptionist'
 import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
+import { isPresenceCheck } from '@/lib/phone-utils'
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,6 +53,15 @@ export async function POST(req: NextRequest) {
       const retry = lastReply?.content ?? "Sorry, I didn't catch that. What would you like to know?"
       const audioId = randomUUID()
       await generateAudio(retry).then(buf => storeAudio(audioId, buf))
+      return gatherResponse(audioId, `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/qa`)
+    }
+
+    // ── Presence check ("hello? you still there?") ──────────────────────────
+    if (isPresenceCheck(speechResult)) {
+      const lastReply = qaMessages.filter(m => m.role === 'assistant').at(-1)
+      const reply = `Hey, I'm still here! Sorry if there was a pause. ${lastReply?.content ?? 'What would you like to know?'}`
+      const audioId = randomUUID()
+      await generateAudio(reply).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/qa`)
     }
 

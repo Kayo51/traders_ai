@@ -6,7 +6,7 @@ import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notifications'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
-import { normaliseUKPhone } from '@/lib/phone-utils'
+import { normaliseUKPhone, isPresenceCheck } from '@/lib/phone-utils'
 
 const MAX_EMPTY_RETRIES = 3
 
@@ -62,6 +62,17 @@ export async function POST(req: NextRequest) {
 
     // Speech received — reset the empty-retry counter
     const cleanMeta = { ...meta, emptyRetries: 0 }
+
+    // ── Presence check ("hello? you still there?") ──────────────────────────
+    if (isPresenceCheck(speechResult)) {
+      const lastAssistant = (conversation.messages as Message[])
+        .filter(m => m.role === 'assistant')
+        .at(-1)
+      const reply = `Hey, I'm still here! Sorry if there was a pause. ${lastAssistant?.content ?? 'Could you say that again please?'}`
+      const audioId = randomUUID()
+      await generateAudio(reply).then(buf => storeAudio(audioId, buf))
+      return gatherResponse(audioId, gatherUrl)
+    }
 
     // ── Build history and call AI ───────────────────────────────────────────
     const history = conversation.messages as Message[]
