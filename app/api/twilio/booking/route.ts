@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      const text = `Perfect! I've booked you in for ${chosenSlot.label}. You'll receive a confirmation text shortly. See you then!`
+      const text = `Perfect! You're booked in for ${chosenSlot.label}. The plumber will also give you a call as soon as possible to confirm. Is there anything else I can help you with before I let you go?`
       await generateAudio(text).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, farewellUrl)
     } catch (err) {
