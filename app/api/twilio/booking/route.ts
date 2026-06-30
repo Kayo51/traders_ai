@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
 import db from '@/lib/db'
 import { pickSlot } from '@/lib/ai/booking'
-import { createBooking, buildSlotOffer, buildSlotReprompt, type CalendarSlot } from '@/lib/calendar'
+import { createBooking, computeDayWindows, buildWindowOffer, buildWindowReprompt, buildWindowUnavailable, type CalendarSlot } from '@/lib/calendar'
 
 import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
@@ -30,16 +30,15 @@ export async function POST(req: NextRequest) {
     })
     if (!conversation) return errorResponse()
 
-    const meta     = (conversation.collectedData as Record<string, unknown>) ?? {}
-    const slots    = (meta.bookingSlots as CalendarSlot[]) ?? []
-    const openMode = (meta.bookingOpenMode as boolean) ?? false
-    const lead     = conversation.call?.lead
-    const audioId  = randomUUID()
+    const meta    = (conversation.collectedData as Record<string, unknown>) ?? {}
+    const slots   = (meta.bookingSlots as CalendarSlot[]) ?? []
+    const windows = computeDayWindows(slots)
+    const lead    = conversation.call?.lead
+    const audioId = randomUUID()
 
     // ── Presence check ────────────────────────────────────────────────────────
     if (isPresenceCheck(speechResult)) {
-      const retries = (meta.bookingRetries as number) ?? 0
-      const text = `Hey, I'm still here! ${buildSlotReprompt(slots, retries)}`
+      const text = `Hey, I'm still here! ${buildWindowReprompt(windows)}`
       await generateAudio(text).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, bookingUrl)
     }
@@ -52,7 +51,7 @@ export async function POST(req: NextRequest) {
         await generateAudio(text).then(buf => storeAudio(audioId, buf))
         return gatherResponse(audioId, farewellUrl)
       }
-      const text = retries === 1 ? buildSlotOffer(slots, openMode) : buildSlotReprompt(slots, retries)
+      const text = retries === 1 ? buildWindowOffer(windows) : buildWindowReprompt(windows)
       await Promise.all([
         generateAudio(text).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),
@@ -70,6 +69,19 @@ export async function POST(req: NextRequest) {
     // ── Try to identify the chosen slot ──────────────────────────────────────
     const slotIndex = await pickSlot(speechResult, slots)
 
+    if (slotIndex === 'unavailable') {
+      // Caller named a specific time that isn't free — tell them what IS available
+      const retries = ((meta.bookingRetries as number) ?? 0) + 1
+      const text = retries > 2
+        ? "That's no problem — the plumber will give you a call to arrange a time. Is there anything else I can help with?"
+        : buildWindowUnavailable(windows)
+      await Promise.all([
+        generateAudio(text).then(buf => storeAudio(audioId, buf)),
+        db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),
+      ])
+      return retries > 2 ? gatherResponse(audioId, farewellUrl) : gatherResponse(audioId, bookingUrl)
+    }
+
     if (slotIndex === null) {
       const retries = ((meta.bookingRetries as number) ?? 0) + 1
       if (retries > 3) {
@@ -77,7 +89,7 @@ export async function POST(req: NextRequest) {
         await generateAudio(text).then(buf => storeAudio(audioId, buf))
         return gatherResponse(audioId, farewellUrl)
       }
-      const text = buildSlotReprompt(slots, retries)
+      const text = buildWindowReprompt(windows)
       await Promise.all([
         generateAudio(text).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),

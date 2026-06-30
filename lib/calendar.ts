@@ -6,7 +6,6 @@ export type CalendarSlot = {
   label: string  // "Thursday at 2:00 pm"
 }
 
-export const OPEN_MODE_THRESHOLD = 5  // if 5+ slots free, ask open-ended rather than listing
 
 const TZ = 'Europe/London'
 
@@ -158,7 +157,7 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
         return sS < bE && sE > bS
       })
     })
-    .slice(0, 6)  // keep up to 6 so AI has more to match against
+    .slice(0, 20)  // keep up to 20 so AI can match any caller-suggested time
 }
 
 export async function createBooking(
@@ -193,23 +192,90 @@ export async function createBooking(
   return event.id as string
 }
 
-export function buildSlotOffer(slots: CalendarSlot[], openMode: boolean): string {
-  if (openMode) {
-    return `I can also book you straight in — we have good availability over the next few days. What day and time would suit you best? Or if you'd prefer, the plumber can just call you to arrange.`
-  }
-  if (slots.length === 1) {
-    return `I can also book you straight in. The only slot I have available is ${slots[0].label}. Does that work for you, or would you prefer the plumber to call you to arrange a time?`
-  }
-  if (slots.length === 2) {
-    return `I can also book you straight in. I have ${slots[0].label} or ${slots[1].label} available. Which works best, or would you prefer the plumber to call you?`
-  }
-  return `I can also book you straight in. I have ${slots[0].label}, ${slots[1].label}, or ${slots[2].label} available. Which works best for you, or would you prefer the plumber to call you to arrange?`
+export type DayWindow = {
+  dayLabel: string   // "tomorrow", "Tuesday"
+  ranges: string[]   // ["9am to 5pm", "7pm to 9pm"]
 }
 
-export function buildSlotReprompt(slots: CalendarSlot[], retries: number): string {
-  if (retries <= 1) {
-    return `Sorry, I didn't quite catch that. What day and time would suit you best? Or just say the word and the plumber will call you directly to arrange.`
+function formatHour(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true,
+  }).formatToParts(date)
+  const hour   = parts.find(p => p.type === 'hour')?.value ?? ''
+  const min    = parts.find(p => p.type === 'minute')?.value ?? '00'
+  const period = (parts.find(p => p.type === 'dayPeriod')?.value ?? '').toLowerCase().replace(/\s+/g, '')
+  return min === '00' ? `${hour}${period}` : `${hour}:${min}${period}`
+}
+
+export function computeDayWindows(slots: CalendarSlot[]): DayWindow[] {
+  if (slots.length === 0) return []
+
+  const now = new Date()
+  const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+
+  const tomorrowRef = new Date(now)
+  tomorrowRef.setDate(tomorrowRef.getDate() + 1)
+  const tomorrowKey = dateFmt.format(tomorrowRef)
+
+  const byDay = new Map<string, CalendarSlot[]>()
+  for (const slot of slots) {
+    const key = dateFmt.format(new Date(slot.start))
+    if (!byDay.has(key)) byDay.set(key, [])
+    byDay.get(key)!.push(slot)
   }
-  if (slots.length === 1) return `Is ${slots[0].label} okay, or shall I have the plumber call you?`
-  return `Sorry about that — shall I book you in for one of those times, or would you prefer the plumber to give you a call?`
+
+  const result: DayWindow[] = []
+  for (const [dateKey, daySlots] of byDay) {
+    daySlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+
+    const slotDate = new Date(daySlots[0].start)
+    const weekday  = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long' }).format(slotDate)
+    const dayLabel = dateKey === tomorrowKey ? 'tomorrow' : weekday
+
+    const ranges: string[] = []
+    let rangeStart = daySlots[0]
+    let prev = daySlots[0]
+
+    for (let i = 1; i < daySlots.length; i++) {
+      const curr = daySlots[i]
+      if (new Date(curr.start).getTime() === new Date(prev.end).getTime()) {
+        prev = curr
+      } else {
+        ranges.push(`${formatHour(new Date(rangeStart.start))} to ${formatHour(new Date(prev.end))}`)
+        rangeStart = curr
+        prev = curr
+      }
+    }
+    ranges.push(`${formatHour(new Date(rangeStart.start))} to ${formatHour(new Date(prev.end))}`)
+
+    result.push({ dayLabel, ranges })
+  }
+  return result
+}
+
+function describeWindows(windows: DayWindow[]): string {
+  const parts = windows.map(w => `${w.dayLabel} from ${w.ranges.join(' and ')}`)
+  if (parts.length === 1) return parts[0]
+  return parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1]
+}
+
+export function buildWindowOffer(windows: DayWindow[]): string {
+  if (windows.length === 0) {
+    return "I'm afraid we don't have any availability just now, but the plumber will give you a call to arrange a time."
+  }
+  return `I can book you straight in — we have availability ${describeWindows(windows)}. What time works best for you, or would you prefer the plumber to call you to arrange?`
+}
+
+export function buildWindowReprompt(windows: DayWindow[]): string {
+  if (windows.length === 0) {
+    return "Sorry about that. The plumber will give you a call to arrange a time — is there anything else I can help with?"
+  }
+  return `Sorry about that — we have availability ${describeWindows(windows)}. What time would suit you best, or shall the plumber call you to arrange?`
+}
+
+export function buildWindowUnavailable(windows: DayWindow[]): string {
+  if (windows.length === 0) {
+    return "I'm afraid that time isn't available and we're fully booked at the moment. The plumber will call you to arrange a time."
+  }
+  return `I'm afraid that time isn't available, but we do have ${describeWindows(windows)}. What time would suit you best?`
 }
