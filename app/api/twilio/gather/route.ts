@@ -7,6 +7,7 @@ import { storeAudio } from '@/lib/audio-cache'
 import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notifications'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { normaliseUKPhone, isPresenceCheck } from '@/lib/phone-utils'
+import { getAvailableSlots, buildSlotOffer } from '@/lib/calendar'
 
 const MAX_EMPTY_RETRIES = 3
 
@@ -23,8 +24,9 @@ export async function POST(req: NextRequest) {
 
     if (!conversation) return errorResponse()
 
-    const gatherUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/gather`
+    const gatherUrl   = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/gather`
     const farewellUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/farewell`
+    const bookingUrl  = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/booking`
 
     const meta = (conversation.collectedData as Record<string, unknown>) ?? {}
 
@@ -138,6 +140,28 @@ export async function POST(req: NextRequest) {
           where: { id: lead.id },
           data: { nextFollowUpAt },
         })
+      }
+
+      // ── Booking flow ─────────────────────────────────────────────────────
+      const s = conversation.business.settings
+      if (s?.bookingEnabled && s.googleAccessToken && s.googleRefreshToken) {
+        try {
+          const slots = await getAvailableSlots(s as any, conversation.businessId)
+          if (slots.length > 0) {
+            const offerText = buildSlotOffer(slots)
+            const bookingAudioId = randomUUID()
+            await Promise.all([
+              generateAudio(offerText).then(buf => storeAudio(bookingAudioId, buf)),
+              db.conversation.update({
+                where: { id: conversation.id },
+                data: { collectedData: { ...cleanMeta, bookingSlots: slots } },
+              }),
+            ])
+            return gatherResponse(bookingAudioId, bookingUrl)
+          }
+        } catch (err) {
+          console.error('[gather] booking slots error:', err)
+        }
       }
 
       return gatherResponse(audioId, farewellUrl)

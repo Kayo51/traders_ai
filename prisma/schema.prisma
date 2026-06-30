@@ -196,6 +196,15 @@ model BusinessSettings {
   followUpEmailEnabled      Boolean @default(true)
   followUpDelays            Json    @default("[5,24,36,48]")
   followUpMaxDays           Int     @default(7)
+  googleAccessToken  String?
+  googleRefreshToken String?
+  googleTokenExpiry  DateTime?
+  googleCalendarId   String?
+  bookingEnabled     Boolean  @default(false)
+  bookingWindowDays  Int      @default(5)
+  bookingSlotDuration Int     @default(60)
+  bookingHoursStart  Int      @default(9)
+  bookingHoursEnd    Int      @default(17)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -274,6 +283,9 @@ model Lead {
   lastFollowUpAt     DateTime?
   nextFollowUpAt     DateTime?
   followUpStopped    Boolean   @default(false)
+  appointmentStart  DateTime?
+  appointmentEnd    DateTime?
+  googleEventId     String?
   smsSentAt   DateTime?
   emailSentAt DateTime?
   createdAt   DateTime   @default(now())
