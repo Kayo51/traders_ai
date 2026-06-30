@@ -6,6 +6,8 @@ export type CalendarSlot = {
   label: string  // "Thursday at 2:00 pm"
 }
 
+export const OPEN_MODE_THRESHOLD = 5  // if 5+ slots free, ask open-ended rather than listing
+
 const TZ = 'Europe/London'
 
 export function getAuthUrl(businessId: string): string {
@@ -13,7 +15,7 @@ export function getAuthUrl(businessId: string): string {
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`,
     response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/calendar.events',
+    scope: 'https://www.googleapis.com/auth/calendar',  // full access — required for freeBusy API
     access_type: 'offline',
     prompt: 'consent',
     state: businessId,
@@ -60,6 +62,12 @@ export async function getValidToken(settings: TokenSettings, businessId: string)
       grant_type: 'refresh_token',
     }),
   }).then(r => r.json())
+
+  if (!data.access_token) {
+    console.error('[calendar] token refresh failed:', data)
+    throw new Error('Failed to refresh Google access token')
+  }
+
   const expiry = new Date(Date.now() + data.expires_in * 1000)
   await db.businessSettings.update({
     where: { businessId },
@@ -77,13 +85,12 @@ type SlotSettings = TokenSettings & {
 }
 
 function getUKOffsetHours(dateUTC: Date): number {
-  // Get the UK hour at noon UTC on this date to determine offset
   const noonRef = new Date(Date.UTC(dateUTC.getUTCFullYear(), dateUTC.getUTCMonth(), dateUTC.getUTCDate(), 12, 0, 0))
   const ukHourAtNoon = parseInt(
     new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hour12: false }).format(noonRef),
     10
   )
-  return ukHourAtNoon - 12 // 0 for GMT, 1 for BST
+  return ukHourAtNoon - 12
 }
 
 export async function getAvailableSlots(settings: SlotSettings, businessId: string): Promise<CalendarSlot[]> {
@@ -111,7 +118,6 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
       const startUTC = new Date(Date.UTC(y, mo - 1, d, h - ukOffset, m, 0))
       const endUTC   = new Date(startUTC.getTime() + slotMins * 60_000)
 
-      // Skip slots less than 1 hour away
       if (startUTC.getTime() < now.getTime() + 3_600_000) continue
 
       candidates.push({
@@ -124,7 +130,8 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
 
   if (candidates.length === 0) return []
 
-  const freeBusy = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+  // Check free/busy — requires https://www.googleapis.com/auth/calendar scope
+  const freeBusyRes = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -134,7 +141,12 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
     }),
   }).then(r => r.json())
 
-  const busy: { start: string; end: string }[] = freeBusy.calendars?.[calendarId]?.busy ?? []
+  if (freeBusyRes.error) {
+    console.error('[calendar] freeBusy API error:', freeBusyRes.error)
+    throw new Error(`FreeBusy API error: ${freeBusyRes.error.message}`)
+  }
+
+  const busy: { start: string; end: string }[] = freeBusyRes.calendars?.[calendarId]?.busy ?? []
 
   return candidates
     .filter(slot => {
@@ -146,7 +158,7 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
         return sS < bE && sE > bS
       })
     })
-    .slice(0, 3)
+    .slice(0, 6)  // keep up to 6 so AI has more to match against
 }
 
 export async function createBooking(
@@ -173,18 +185,31 @@ export async function createBooking(
     }
   ).then(r => r.json())
 
+  if (!event.id) {
+    console.error('[calendar] createBooking error:', event)
+    throw new Error('Failed to create calendar event')
+  }
+
   return event.id as string
 }
 
-export function buildSlotOffer(slots: CalendarSlot[]): string {
-  if (slots.length === 0) return ''
-  if (slots.length === 1) return `I can also book you straight in. We have ${slots[0].label} available — would that work for you?`
-  if (slots.length === 2) return `I can also book you straight in. I have ${slots[0].label} or ${slots[1].label} — which works best?`
-  return `I can also book you straight in. I have ${slots[0].label}, ${slots[1].label}, or ${slots[2].label}. Which works best for you?`
+export function buildSlotOffer(slots: CalendarSlot[], openMode: boolean): string {
+  if (openMode) {
+    return `I can also book you straight in — we have good availability over the next few days. What day and time would suit you best? Or if you'd prefer, the plumber can just call you to arrange.`
+  }
+  if (slots.length === 1) {
+    return `I can also book you straight in. The only slot I have available is ${slots[0].label}. Does that work for you, or would you prefer the plumber to call you to arrange a time?`
+  }
+  if (slots.length === 2) {
+    return `I can also book you straight in. I have ${slots[0].label} or ${slots[1].label} available. Which works best, or would you prefer the plumber to call you?`
+  }
+  return `I can also book you straight in. I have ${slots[0].label}, ${slots[1].label}, or ${slots[2].label} available. Which works best for you, or would you prefer the plumber to call you to arrange?`
 }
 
-export function buildSlotReprompt(slots: CalendarSlot[]): string {
-  if (slots.length === 1) return `Just to confirm — is ${slots[0].label} okay for you?`
-  if (slots.length === 2) return `Sorry, I didn't quite catch that. Is it ${slots[0].label} or ${slots[1].label}?`
-  return `Sorry about that — I have ${slots[0].label}, ${slots[1].label}, or ${slots[2].label}. Which would you like?`
+export function buildSlotReprompt(slots: CalendarSlot[], retries: number): string {
+  if (retries <= 1) {
+    return `Sorry, I didn't quite catch that. What day and time would suit you best? Or just say the word and the plumber will call you directly to arrange.`
+  }
+  if (slots.length === 1) return `Is ${slots[0].label} okay, or shall I have the plumber call you?`
+  return `Sorry about that — shall I book you in for one of those times, or would you prefer the plumber to give you a call?`
 }

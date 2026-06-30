@@ -11,7 +11,11 @@ export async function pickSlot(speech: string, slots: CalendarSlot[]): Promise<n
   const res = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 10,
-    system: 'You identify which appointment slot a caller chose from a list. Reply with just the slot number (1, 2, 3...) or "none" if unclear or if they are declining.',
+    system: `You identify which appointment slot a caller wants from a list.
+The caller may pick by number ("the first one"), by day ("Thursday"), by time ("2pm"),
+by description ("Thursday afternoon", "Friday morning"), or by expressing a preference.
+Match to the closest available slot.
+Reply with just the slot number (1, 2, 3...) or "none" if they are declining, want the plumber to call them, or their preference doesn't match any slot.`,
     messages: [{
       role: 'user',
       content: `Available slots:\n${slotList}\n\nCaller said: "${speech}"\n\nSlot number or "none":`,

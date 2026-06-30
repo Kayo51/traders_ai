@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import db from '@/lib/db'
 import { pickSlot } from '@/lib/ai/booking'
 import { createBooking, buildSlotOffer, buildSlotReprompt, type CalendarSlot } from '@/lib/calendar'
+
 import { generateAudio } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
@@ -29,14 +30,16 @@ export async function POST(req: NextRequest) {
     })
     if (!conversation) return errorResponse()
 
-    const meta  = (conversation.collectedData as Record<string, unknown>) ?? {}
-    const slots = (meta.bookingSlots as CalendarSlot[]) ?? []
-    const lead  = conversation.call?.lead
-    const audioId = randomUUID()
+    const meta     = (conversation.collectedData as Record<string, unknown>) ?? {}
+    const slots    = (meta.bookingSlots as CalendarSlot[]) ?? []
+    const openMode = (meta.bookingOpenMode as boolean) ?? false
+    const lead     = conversation.call?.lead
+    const audioId  = randomUUID()
 
     // ── Presence check ────────────────────────────────────────────────────────
     if (isPresenceCheck(speechResult)) {
-      const text = `Hey, I'm still here! ${buildSlotReprompt(slots)}`
+      const retries = (meta.bookingRetries as number) ?? 0
+      const text = `Hey, I'm still here! ${buildSlotReprompt(slots, retries)}`
       await generateAudio(text).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, bookingUrl)
     }
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest) {
         await generateAudio(text).then(buf => storeAudio(audioId, buf))
         return gatherResponse(audioId, farewellUrl)
       }
-      const text = retries === 1 ? buildSlotOffer(slots) : buildSlotReprompt(slots)
+      const text = retries === 1 ? buildSlotOffer(slots, openMode) : buildSlotReprompt(slots, retries)
       await Promise.all([
         generateAudio(text).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),
@@ -57,7 +60,7 @@ export async function POST(req: NextRequest) {
       return gatherResponse(audioId, bookingUrl)
     }
 
-    // ── Caller declining ──────────────────────────────────────────────────────
+    // ── Caller wants plumber to call instead ──────────────────────────────────
     if (DECLINE_RE.test(speechResult)) {
       const text = "No worries at all! The plumber will call you to arrange a time. Is there anything else I can help with?"
       await generateAudio(text).then(buf => storeAudio(audioId, buf))
@@ -70,11 +73,11 @@ export async function POST(req: NextRequest) {
     if (slotIndex === null) {
       const retries = ((meta.bookingRetries as number) ?? 0) + 1
       if (retries > 3) {
-        const text = "Sorry I keep mishearing you! The plumber will call to arrange a time directly. Let me finish up."
+        const text = "That's no problem — the plumber will give you a call to arrange a time. Is there anything else I can help with?"
         await generateAudio(text).then(buf => storeAudio(audioId, buf))
         return gatherResponse(audioId, farewellUrl)
       }
-      const text = buildSlotReprompt(slots)
+      const text = buildSlotReprompt(slots, retries)
       await Promise.all([
         generateAudio(text).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),

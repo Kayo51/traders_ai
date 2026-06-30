@@ -7,7 +7,7 @@ import { storeAudio } from '@/lib/audio-cache'
 import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notifications'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { normaliseUKPhone, isPresenceCheck } from '@/lib/phone-utils'
-import { getAvailableSlots, buildSlotOffer } from '@/lib/calendar'
+import { getAvailableSlots, buildSlotOffer, OPEN_MODE_THRESHOLD } from '@/lib/calendar'
 import { markCallCompleted } from '@/lib/call-utils'
 
 const MAX_EMPTY_RETRIES = 3
@@ -151,13 +151,14 @@ export async function POST(req: NextRequest) {
         try {
           const slots = await getAvailableSlots(s as any, conversation.businessId)
           if (slots.length > 0) {
-            const offerText = buildSlotOffer(slots)
+            const openMode = slots.length >= OPEN_MODE_THRESHOLD
+            const offerText = buildSlotOffer(slots, openMode)
             const bookingAudioId = randomUUID()
             await Promise.all([
               generateAudio(offerText).then(buf => storeAudio(bookingAudioId, buf)),
               db.conversation.update({
                 where: { id: conversation.id },
-                data: { collectedData: { ...cleanMeta, bookingSlots: slots } },
+                data: { collectedData: { ...cleanMeta, bookingSlots: slots, bookingOpenMode: openMode } },
               }),
             ])
             return gatherResponse(bookingAudioId, bookingUrl)
