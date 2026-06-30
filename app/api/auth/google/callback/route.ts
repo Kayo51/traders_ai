@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         bookingEnabled:     true,
       },
     })
-    settingsUrl.searchParams.set('calendarConnected', '1')
+    // no query param needed — settings page reads connected state from DB
   } catch (err) {
     console.error('[google/callback]', err)
     settingsUrl.searchParams.set('calendarError', 'exchange_failed')

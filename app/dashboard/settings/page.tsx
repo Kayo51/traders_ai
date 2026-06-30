@@ -12,10 +12,9 @@ export default async function SettingsPage({
   const business = await getCurrentBusiness()
   const settings = business?.settings ?? null
 
-  const delays          = settings ? getDelays(settings as unknown as BusinessSettings) : [5, 24, 36, 48]
+  const delays            = settings ? getDelays(settings as unknown as BusinessSettings) : [5, 24, 36, 48]
   const calendarConnected = !!(settings as any)?.googleAccessToken
-  const calendarError   = params.calendarError
-  const calendarSuccess = params.calendarConnected === '1'
+  const calendarError     = params.calendarError
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-2xl">
@@ -200,11 +199,6 @@ export default async function SettingsPage({
           <p className="mt-0.5 text-xs text-zinc-500">Connect your Google Calendar so the AI can offer and book appointment slots during calls.</p>
         </div>
 
-        {calendarSuccess && (
-          <div className="px-5 py-3 text-xs text-emerald-700 bg-emerald-50">
-            Google Calendar connected successfully.
-          </div>
-        )}
         {calendarError && (
           <div className="px-5 py-3 text-xs text-red-700 bg-red-50">
             Could not connect Google Calendar ({calendarError}). Please try again.
