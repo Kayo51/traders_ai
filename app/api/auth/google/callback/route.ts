@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const businessId = searchParams.get('state')
   const error      = searchParams.get('error')
 
-  // Use req.nextUrl as base so the redirect always stays on the same origin
-  const settingsUrl = new URL('/dashboard/settings', req.nextUrl)
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin
+  const settingsUrl = new URL('/dashboard/settings', base)
 
   if (error || !code || !businessId) {
     settingsUrl.searchParams.set('calendarError', error ?? 'cancelled')
