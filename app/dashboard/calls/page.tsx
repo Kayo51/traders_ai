@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
 import { CallsTable } from './_components/calls-table'

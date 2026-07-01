@@ -1,6 +1,10 @@
+export const dynamic = 'force-dynamic'
+
 import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
 import { LeadsTable } from './_components/leads-table'
+import { KPICards } from '@/components/dashboard/KPICards'
+import { VALID_PERIODS, type Period } from '@/lib/dashboardStats'
 import type { Prisma, LeadStatus } from '@prisma/client'
 
 const VALID_SORT_FIELDS = ['urgency','callerName','description','postcode','callerPhone','status','createdAt'] as const
@@ -20,6 +24,9 @@ export default async function LeadsPage({
 }) {
   const params = await searchParams
   const business = await getCurrentBusiness()
+
+  const rawPeriod = params.kpi_period
+  const period: Period = VALID_PERIODS.has(rawPeriod as Period) ? (rawPeriod as Period) : 'day'
 
   const rawStatus = params.status?.toUpperCase()
   const validStatuses: LeadStatus[] = ['NEW','CONTACTED','BOOKED','COMPLETED','LOST']
@@ -45,6 +52,7 @@ export default async function LeadsPage({
         <h1 className="text-xl font-semibold text-zinc-900">Leads</h1>
         <p className="mt-1 text-sm text-zinc-500">Customers collected by your AI receptionist.</p>
       </div>
+      {business && <KPICards businessId={business.id} period={period} />}
       <LeadsTable
         leads={leads}
         currentSort={sortField}

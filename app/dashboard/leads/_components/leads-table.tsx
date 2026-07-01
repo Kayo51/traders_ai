@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence } from 'framer-motion'
 import type { Lead } from '@prisma/client'
 import { LeadRow } from './lead-row'
+import { useLeadSearch } from '@/lib/search'
+import { DashboardSearch } from '@/components/dashboard/DashboardSearch'
 
 // Status filter options
 const LEAD_STATUSES = ['ALL', 'NEW', 'CONTACTED', 'BOOKED', 'COMPLETED', 'LOST']
@@ -54,6 +56,7 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
   currentStatus: string
 }) {
   const router = useRouter()
+  const { query, handleChange, clear, filtered, hasQuery, resultCount } = useLeadSearch(leads)
 
   function updateParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
@@ -77,8 +80,8 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
     updateParams({ status: s === 'ALL' ? null : s })
   }
 
-  // Show grouped view only when sorting by createdAt or not sorting at all
-  const showGrouped = !currentSort || currentSort === 'createdAt'
+  // Show grouped view only when sorting by createdAt or not sorting — and not actively searching
+  const showGrouped = (!currentSort || currentSort === 'createdAt') && !hasQuery
 
   const sortIndicator = (key: string) => {
     if (currentSort !== key) return (
@@ -127,10 +130,19 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
     />
   ))
 
-  const grouped = showGrouped ? groupLeads(leads) : null
+  const grouped = showGrouped ? groupLeads(filtered) : null
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Search */}
+      <DashboardSearch
+        value={query}
+        onChange={handleChange}
+        onClear={clear}
+        resultCount={resultCount}
+        hasQuery={hasQuery}
+      />
+
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
         {LEAD_STATUSES.map(s => {
@@ -153,7 +165,12 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
         )}
       </div>
 
-      {leads.length === 0 ? (
+      {hasQuery && resultCount === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-white py-20 text-center">
+          <p className="text-sm font-medium text-zinc-900">No results found</p>
+          <p className="mt-1 text-sm text-zinc-500">Try a name, phone number, postcode or job type.</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-white py-20 text-center">
           <p className="text-sm font-medium text-zinc-900">No leads match these filters</p>
           <p className="mt-1 text-sm text-zinc-500">Try a different status or clear the filters.</p>
@@ -174,11 +191,11 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
           ))}
         </div>
       ) : (
-        /* Flat sorted view */
+        /* Flat sorted / search results view */
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <table className="w-full text-sm">
             {tableHeader}
-            <tbody className="divide-y divide-zinc-100">{renderRows(leads)}</tbody>
+            <tbody className="divide-y divide-zinc-100">{renderRows(filtered)}</tbody>
           </table>
         </div>
       )}

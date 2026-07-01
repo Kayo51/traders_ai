@@ -14,8 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TradeFlow AI",
-  description: "AI receptionist for UK plumbers",
+  title: "TradeFlow AI — AI Voice Receptionist for UK Trade Businesses",
+  description: "Never miss a customer call again. TradeFlow AI answers every call instantly, captures job details, and sends you a WhatsApp alert. Built for UK plumbers, electricians and contractors.",
+  keywords: "AI receptionist, UK plumbers, missed calls, trade business, voice AI, lead capture",
+  openGraph: {
+    title: "TradeFlow AI — Never Miss a Customer Again",
+    description: "AI voice receptionist that answers every call and captures job details for UK trade businesses.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

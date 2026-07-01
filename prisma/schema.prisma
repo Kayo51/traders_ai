@@ -259,6 +259,21 @@ model Conversation {
 }
 
 // ─────────────────────────────────────────────
+// Demo Request (landing page bookings)
+// ─────────────────────────────────────────────
+
+model DemoRequest {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  trade     String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
 // Lead
 // ─────────────────────────────────────────────
 
