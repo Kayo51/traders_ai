@@ -2,20 +2,35 @@ import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
 import db from '@/lib/db'
 import { chat, type Message } from '@/lib/ai/receptionist'
-import { generateAudio } from '@/lib/tts'
+import { generateAudio, resolveVoiceId } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notifications'
-import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
+import { gatherResponse, gatherResponseWithSay, hangupResponse, hangupResponseWithSay, errorResponse } from '@/lib/twiml'
 import { normaliseUKPhone, isPresenceCheck } from '@/lib/phone-utils'
 import { getAvailableSlots, computeDayWindows, buildWindowOffer } from '@/lib/calendar'
 import { markCallCompleted } from '@/lib/call-utils'
 
 const MAX_EMPTY_RETRIES = 3
 
+async function tts(text: string, voiceId: string): Promise<{ audioId: string; fallback: false } | { fallback: true; text: string }> {
+  try {
+    const audioId = randomUUID()
+    const buf = await generateAudio(text, voiceId)
+    storeAudio(audioId, buf)
+    return { audioId, fallback: false }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('quota_exceeded')) {
+      console.warn('[gather] ElevenLabs quota exceeded — falling back to Twilio <Say>')
+      return { fallback: true, text }
+    }
+    throw err
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData()
-    const callSid = form.get('CallSid') as string
+    const callSid      = form.get('CallSid')     as string
     const speechResult = form.get('SpeechResult') as string | null
 
     const conversation = await db.conversation.findUnique({
@@ -24,6 +39,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (!conversation) return errorResponse()
+
+    const { business } = conversation
+    const voiceId = resolveVoiceId({
+      receptionistVoice: business.receptionistVoice,
+      receptionistGender: business.receptionistGender,
+      receptionistAccent: business.receptionistAccent,
+    })
 
     const gatherUrl   = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/gather`
     const farewellUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/farewell`
@@ -35,17 +57,12 @@ export async function POST(req: NextRequest) {
     if (!speechResult?.trim()) {
       const emptyCount = ((meta.emptyRetries as number) ?? 0) + 1
 
-      // After 3 silent attempts, give up gracefully
       if (emptyCount >= MAX_EMPTY_RETRIES) {
-        const audioId = randomUUID()
-        await Promise.all([
-          generateAudio("I'm sorry, I'm having trouble hearing you. Please try calling back when you're in a quieter spot. Goodbye!").then(buf => storeAudio(audioId, buf)),
-          markCallCompleted(callSid),
-        ])
-        return hangupResponse(audioId)
+        const farewell = "I'm sorry, I'm having trouble hearing you. Please try calling back when you're in a quieter spot. Goodbye!"
+        const [result] = await Promise.all([tts(farewell, voiceId), markCallCompleted(callSid)])
+        return result.fallback ? hangupResponseWithSay(farewell) : hangupResponse(result.audioId)
       }
 
-      // Replay last assistant message with a gentle prompt
       const lastAssistant = (conversation.messages as Message[])
         .filter(m => m.role === 'assistant')
         .at(-1)
@@ -54,15 +71,14 @@ export async function POST(req: NextRequest) {
         ? `Sorry, I didn't quite catch that. ${lastAssistant?.content ?? 'Could you say that again?'}`
         : `I'm still having trouble hearing you. Could you speak up a little? ${lastAssistant?.content ?? ''}`
 
-      const audioId = randomUUID()
-      await Promise.all([
-        generateAudio(retry).then(buf => storeAudio(audioId, buf)),
+      const [result] = await Promise.all([
+        tts(retry, voiceId),
         db.conversation.update({
           where: { id: conversation.id },
           data: { collectedData: { ...meta, emptyRetries: emptyCount } },
         }),
       ])
-      return gatherResponse(audioId, gatherUrl)
+      return result.fallback ? gatherResponseWithSay(retry, gatherUrl) : gatherResponse(result.audioId, gatherUrl)
     }
 
     // Speech received — reset the empty-retry counter
@@ -74,21 +90,29 @@ export async function POST(req: NextRequest) {
         .filter(m => m.role === 'assistant')
         .at(-1)
       const reply = `Hey, I'm still here! Sorry if there was a pause. ${lastAssistant?.content ?? 'Could you say that again please?'}`
-      const audioId = randomUUID()
-      await generateAudio(reply).then(buf => storeAudio(audioId, buf))
-      return gatherResponse(audioId, gatherUrl)
+      const result = await tts(reply, voiceId)
+      return result.fallback ? gatherResponseWithSay(reply, gatherUrl) : gatherResponse(result.audioId, gatherUrl)
+    }
+
+    // ── Build business context for the AI ──────────────────────────────────
+    const ctx = {
+      businessName:      business.name,
+      businessType:      business.businessType,
+      receptionistName:  business.receptionistName,
+      receptionistTone:  business.receptionistTone,
+      services:          business.settings?.servicesOffered as string[] | undefined,
+      openingHoursText:  business.openingHoursText,
+      emergencyService:  business.emergencyService,
     }
 
     // ── Build history and call AI ───────────────────────────────────────────
     const history = conversation.messages as Message[]
     const updatedMessages: Message[] = [...history, { role: 'user', content: speechResult }]
-    const result = await chat(updatedMessages)
+    const result = await chat(updatedMessages, ctx)
     const newMessages: Message[] = [...updatedMessages, { role: 'assistant', content: result.reply }]
 
-    // Pre-generate audio and save conversation in parallel
-    const audioId = randomUUID()
-    await Promise.all([
-      generateAudio(result.reply).then(buf => storeAudio(audioId, buf)),
+    const [ttsResult] = await Promise.all([
+      tts(result.reply, voiceId),
       db.conversation.update({
         where: { id: conversation.id },
         data: {
@@ -124,7 +148,6 @@ export async function POST(req: NextRequest) {
         }).catch(err => console.error('[gather] notification error:', err))
       }
 
-      // Set first follow-up time based on business settings
       const firstDelay = conversation.business.settings
         ? (() => {
             try {
@@ -139,10 +162,7 @@ export async function POST(req: NextRequest) {
         : null
 
       if (nextFollowUpAt) {
-        await db.lead.update({
-          where: { id: lead.id },
-          data: { nextFollowUpAt },
-        })
+        await db.lead.update({ where: { id: lead.id }, data: { nextFollowUpAt } })
       }
 
       // ── Booking flow ─────────────────────────────────────────────────────
@@ -153,25 +173,26 @@ export async function POST(req: NextRequest) {
           if (slots.length > 0) {
             const windows = computeDayWindows(slots)
             const offerText = buildWindowOffer(windows)
-            const bookingAudioId = randomUUID()
-            await Promise.all([
-              generateAudio(offerText).then(buf => storeAudio(bookingAudioId, buf)),
+            const [bookingTts] = await Promise.all([
+              tts(offerText, voiceId),
               db.conversation.update({
                 where: { id: conversation.id },
                 data: { collectedData: { ...cleanMeta, bookingSlots: slots } },
               }),
             ])
-            return gatherResponse(bookingAudioId, bookingUrl)
+            return bookingTts.fallback
+              ? gatherResponseWithSay(offerText, bookingUrl)
+              : gatherResponse(bookingTts.audioId, bookingUrl)
           }
         } catch (err) {
           console.error('[gather] booking slots error:', err)
         }
       }
 
-      return gatherResponse(audioId, farewellUrl)
+      return ttsResult.fallback ? gatherResponseWithSay(result.reply, farewellUrl) : gatherResponse(ttsResult.audioId, farewellUrl)
     }
 
-    return gatherResponse(audioId, gatherUrl)
+    return ttsResult.fallback ? gatherResponseWithSay(result.reply, gatherUrl) : gatherResponse(ttsResult.audioId, gatherUrl)
   } catch (err) {
     console.error('[twilio/gather]', err)
     return errorResponse()

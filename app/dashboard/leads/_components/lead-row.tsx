@@ -2,10 +2,12 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Urgency, LeadStatus } from '@prisma/client'
 import { UrgencyBadge } from '@/components/ui/urgency-badge'
-import { markAsContacted, undoContacted } from '../actions'
+import { DeleteButton } from '@/components/ui/DeleteButton'
+import { markAsContacted, undoContacted, deleteLead } from '../actions'
 
 type LeadRowProps = {
   id: string
@@ -49,11 +51,14 @@ const STATUS_STYLES: Partial<Record<LeadStatus, string>> = {
 }
 
 export function LeadRow(props: LeadRowProps) {
+  const [deleted, setDeleted] = useState(false)
   const [contacted, setContacted] = useState(props.contacted)
   const [contactedAt, setContactedAt] = useState(props.contactedAt)
   const [showUndo, setShowUndo] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  if (deleted) return null
 
   useEffect(() => {
     if (!showUndo) return
@@ -97,7 +102,11 @@ export function LeadRow(props: LeadRowProps) {
         <td className="px-4 py-3">
           <UrgencyBadge urgency={props.urgency} />
         </td>
-        <td className="px-4 py-3 font-medium text-zinc-900">{props.callerName ?? '—'}</td>
+        <td className="px-4 py-3 font-medium text-zinc-900">
+          <Link href={`/dashboard/leads/${props.id}`} className="hover:text-blue-600 hover:underline transition-colors">
+            {props.callerName ?? '—'}
+          </Link>
+        </td>
         <td className="px-4 py-3 text-zinc-600 max-w-xs truncate">
           {props.description ?? props.jobType ?? '—'}
         </td>
@@ -158,6 +167,9 @@ export function LeadRow(props: LeadRowProps) {
           </AnimatePresence>
         </td>
         <td className="px-4 py-3 text-zinc-500 whitespace-nowrap text-xs">{formatDate(props.createdAt)}</td>
+        <td className="px-4 py-3">
+          <DeleteButton onDelete={async () => { await deleteLead(props.id); setDeleted(true) }} />
+        </td>
       </tr>
 
       {/* Toast — portalled to body to avoid invalid <div> inside <tbody> */}

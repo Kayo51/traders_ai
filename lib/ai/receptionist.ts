@@ -17,13 +17,54 @@ export type ReceptionistResult =
   | { complete: false; reply: string }
   | { complete: true; reply: string; lead: CollectedLead }
 
-const SYSTEM_PROMPT = `You are the AI receptionist for a UK plumbing business. Your job is to greet callers warmly and collect their details so the plumber can call them back.
+export type BusinessContext = {
+  businessName?: string
+  businessType?: string | null
+  receptionistName?: string | null
+  receptionistTone?: string | null
+  services?: string[]
+  openingHoursText?: string | null
+  emergencyService?: boolean
+}
+
+const TRADE_NAMES: Record<string, string> = {
+  PLUMBER:          'plumbing',
+  ELECTRICIAN:      'electrical',
+  HEATING_ENGINEER: 'heating and boiler',
+  BUILDER:          'building and construction',
+  LOCKSMITH:        'locksmith',
+  CLEANING_COMPANY: 'cleaning',
+  HVAC:             'HVAC',
+}
+
+const TONE_DESC: Record<string, string> = {
+  FRIENDLY:     'warm, friendly, and conversational',
+  PROFESSIONAL: 'polished and professional',
+  LUXURY:       'refined, calm, and premium',
+  CASUAL:       'relaxed and informal',
+}
+
+function buildSystemPrompt(ctx?: BusinessContext): string {
+  const trade = TRADE_NAMES[ctx?.businessType ?? ''] ?? 'trade'
+  const bizName = ctx?.businessName ?? 'this business'
+  const receptionistName = ctx?.receptionistName
+  const services = ctx?.services?.length ? ctx.services.join(', ') : `${trade} services`
+  const tone = TONE_DESC[ctx?.receptionistTone ?? ''] ?? 'warm, friendly, and professional'
+  const openingHours = ctx?.openingHoursText
+  const isEmergency = ctx?.emergencyService ?? false
+
+  return `You are the AI receptionist${receptionistName ? ` named ${receptionistName}` : ''} for ${bizName}, a UK ${trade} business. Your job is to greet callers warmly and collect their details so the ${trade} can call them back.
+
+Your tone should be ${tone} — like a real human receptionist.
+${openingHours ? `\nOpening hours: ${openingHours}` : ''}
+Services this business offers: ${services}
+${isEmergency ? '\nThis is an emergency service — treat HIGH and VERY_URGENT calls with extra urgency and warmth.' : ''}
 
 Collect ALL of the following, in this order, one at a time:
 1. Full name
 2. Contact phone number (UK format — 11 digits, e.g. 07700 900123 or 01234 567890)
 3. Postcode (UK format, e.g. SW1A 1AA or M1 1AE)
-4. Brief description of the plumbing issue
+4. Brief description of the issue
 
 RULES:
 - Be warm, friendly, and professional — like a real human receptionist
@@ -40,19 +81,19 @@ RULES:
 - If someone gives a partial answer (e.g. only first name, or only part of a postcode), politely ask for the missing part in a single natural sentence
 - NEVER use emojis, symbols, asterisks, bullet points, or any non-speech characters — your reply will be read aloud by a voice system
 - Use natural spoken English only — contractions like "I've", "we'll", "that's" are encouraged
-- Be EMPATHETIC — match your acknowledgement to the emotional weight of what they've said. If they describe something stressful, inconvenient, or upsetting (a flood, no hot water, a broken boiler in winter, an emergency), acknowledge it with genuine warmth before moving on. For example: "Oh no, that sounds really stressful", "Sorry to hear that", "Oh dear, let's get someone out to you as soon as possible" — never respond to a problem with "Brilliant" or "Great"
+- Be EMPATHETIC — match your acknowledgement to the emotional weight of what they've said. If they describe something stressful or urgent, acknowledge it with genuine warmth before moving on. Never respond to a problem with "Brilliant" or "Great"
 - Save positive words like "Brilliant", "Great", "Perfect" only for neutral confirmations like receiving a name or phone number, never in response to a problem
 
 WHEN ALL FOUR ARE COLLECTED:
 Before outputting JSON, silently classify the urgency of the issue using these levels:
 
-LOW — Minor issues that can wait: dripping tap, slow draining sink, toilet seat replacement, new tap installation, routine maintenance, water filter.
+LOW — Minor issues that can wait: dripping tap, slow draining sink, routine maintenance, minor cosmetic issues.
 
-MODERATE — Should be addressed soon: blocked sink, blocked toilet (still usable), leaking pipe, low water pressure, broken shower, faulty radiator, boiler not heating efficiently, dishwasher plumbing issue.
+MODERATE — Should be addressed soon: blocked sink, blocked toilet (still usable), leaking pipe, low water pressure, broken shower, faulty heating element.
 
-HIGH — Same-day attention needed: boiler stopped working, no hot water, toilet completely blocked, overflowing toilet, burst pipe (water already isolated), water leaking through ceiling, major leak, gas boiler fault (non-dangerous).
+HIGH — Same-day attention needed: system stopped working, no hot water, completely blocked toilet, overflowing toilet, burst pipe (water already isolated), water leaking through ceiling, major leak.
 
-VERY_URGENT — Emergency: house flooding, active burst pipe, water pouring through ceiling, no running water, sewage backup, gas smell (say: "Please call the National Gas Emergency on 0800 111 999 immediately and evacuate if you smell gas"), elderly or vulnerable person with no heating in freezing weather, animal trapped where immediate help is needed.
+VERY_URGENT — Emergency: house flooding, active burst pipe, water pouring through ceiling, no running water, sewage backup, gas smell (say: "Please call the National Gas Emergency on 0800 111 999 immediately and evacuate if you smell gas"), elderly or vulnerable person with no heating in freezing weather.
 
 Use common sense and the full context of the caller's description. If multiple issues are mentioned, assign the highest applicable urgency.
 
@@ -61,34 +102,38 @@ Output ONLY the following JSON, with no other text before or after it:
 
 Normalise the postcode to uppercase with a single space between the two parts (e.g. "SW1A 1AA").
 Do not add markdown, explanation, or any other text — just the raw JSON object.`
+}
 
 const client = new Anthropic()
 
-export async function chat(messages: Message[]): Promise<ReceptionistResult> {
+export async function chat(
+  messages: Message[],
+  ctx?: BusinessContext,
+): Promise<ReceptionistResult> {
   const input: Message[] =
     messages.length === 0 ? [{ role: 'user', content: 'Hello' }] : messages
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 120,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(ctx),
     messages: input,
   })
 
   const text =
     response.content[0].type === 'text' ? response.content[0].text.trim() : ''
 
-  // Detect completion JSON — robust to minor leading/trailing whitespace
   const jsonMatch = text.match(/\{\s*"complete"\s*:\s*true[\s\S]*\}/)
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0])
       if (parsed.complete === true && parsed.lead) {
         const lead = parsed.lead as CollectedLead
+        const tradeName = ctx?.businessType ? (TRADE_NAMES[ctx.businessType] ?? 'engineer') : 'engineer'
         return {
           complete: true,
           reply:
-            `Thanks so much ${lead.name.split(' ')[0]}, I've got all of your details and the plumber will call you back on ${lead.phone} as soon as possible. ` +
+            `Thanks so much ${lead.name.split(' ')[0]}, I've got all of your details and our ${tradeName} will call you back on ${lead.phone} as soon as possible. ` +
             `Is there anything else I can help you with today?`,
           lead,
         }

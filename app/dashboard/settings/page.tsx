@@ -1,7 +1,11 @@
 import { getCurrentBusiness } from '@/lib/onboarding'
 import { saveSettings, disconnectGoogleCalendar } from './actions'
 import { getDelays } from '@/lib/follow-up-scheduler'
+import { VoicePreviewButton } from './_components/VoicePreviewButton'
 import type { BusinessSettings } from '@prisma/client'
+
+const INPUT = 'mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400'
+const SELECT = 'mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400 bg-white'
 
 export default async function SettingsPage({
   searchParams,
@@ -15,6 +19,8 @@ export default async function SettingsPage({
   const delays            = settings ? getDelays(settings as unknown as BusinessSettings) : [5, 24, 36, 48]
   const calendarConnected = !!(settings as any)?.googleAccessToken
   const calendarError     = params.calendarError
+
+  const gender = (business?.receptionistGender ?? 'female').toLowerCase()
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-2xl">
@@ -30,17 +36,90 @@ export default async function SettingsPage({
             <h2 className="text-sm font-semibold text-zinc-900">Business</h2>
           </div>
           <div className="flex flex-col gap-1 px-5 py-4">
-            <label className="text-xs font-medium text-zinc-500">Business name</label>
-            <p className="text-sm text-zinc-900">{business?.name ?? '—'}</p>
+            <label htmlFor="businessName" className="text-xs font-medium text-zinc-500">Business name</label>
+            <input
+              id="businessName" name="businessName" type="text"
+              defaultValue={business?.name ?? ''}
+              placeholder="e.g. Smith Plumbing Ltd"
+              className={INPUT}
+            />
           </div>
           <div className="flex flex-col gap-1 px-5 py-4">
-            <label htmlFor="greetingMessage" className="text-xs font-medium text-zinc-500">AI greeting message</label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="greetingMessage" className="text-xs font-medium text-zinc-500">AI greeting message</label>
+              <VoicePreviewButton />
+            </div>
             <textarea
               id="greetingMessage" name="greetingMessage" rows={3}
               defaultValue={settings?.greetingMessage ?? ''}
               className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400 resize-none"
             />
-            <p className="text-xs text-zinc-400">This is the first thing callers hear.</p>
+            <p className="text-xs text-zinc-400">This is the first thing callers hear. Click &quot;Preview voice&quot; to hear it spoken.</p>
+          </div>
+        </section>
+
+        {/* === AI Receptionist === */}
+        <section className="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-100">
+          <div className="px-5 py-4">
+            <h2 className="text-sm font-semibold text-zinc-900">AI Receptionist</h2>
+            <p className="mt-0.5 text-xs text-zinc-500">Customise how your receptionist sounds and behaves on calls.</p>
+          </div>
+
+          <div className="flex flex-col gap-1 px-5 py-4">
+            <label htmlFor="receptionistName" className="text-xs font-medium text-zinc-500">Receptionist name</label>
+            <input
+              id="receptionistName" name="receptionistName" type="text"
+              defaultValue={business?.receptionistName ?? ''}
+              placeholder="e.g. Sophie, Alex"
+              className={INPUT}
+            />
+            <p className="text-xs text-zinc-400">What the AI calls herself during calls.</p>
+          </div>
+
+          <div className="px-5 py-4">
+            <p className="mb-3 text-xs font-medium text-zinc-500">Voice gender</p>
+            <div className="flex gap-6">
+              {(['female', 'male'] as const).map(g => (
+                <label key={g} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio" name="receptionistGender" value={g}
+                    defaultChecked={gender === g}
+                    className="accent-zinc-900"
+                  />
+                  <span className="text-sm text-zinc-700 capitalize">{g}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 px-5 py-4">
+            <label htmlFor="receptionistAccent" className="text-xs font-medium text-zinc-500">Accent</label>
+            <select
+              id="receptionistAccent" name="receptionistAccent"
+              defaultValue={business?.receptionistAccent ?? 'BRITISH'}
+              className={SELECT}
+            >
+              <option value="BRITISH">British</option>
+              <option value="AMERICAN">American</option>
+              <option value="AUSTRALIAN">Australian</option>
+              <option value="IRISH">Irish</option>
+              <option value="SCOTTISH">Scottish</option>
+            </select>
+            <p className="text-xs text-zinc-400">Maps to a specific ElevenLabs voice via your environment variables.</p>
+          </div>
+
+          <div className="flex flex-col gap-1 px-5 py-4">
+            <label htmlFor="receptionistTone" className="text-xs font-medium text-zinc-500">Tone</label>
+            <select
+              id="receptionistTone" name="receptionistTone"
+              defaultValue={business?.receptionistTone ?? 'FRIENDLY'}
+              className={SELECT}
+            >
+              <option value="FRIENDLY">Friendly</option>
+              <option value="PROFESSIONAL">Professional</option>
+              <option value="LUXURY">Luxury</option>
+              <option value="CASUAL">Casual</option>
+            </select>
           </div>
         </section>
 
@@ -53,7 +132,7 @@ export default async function SettingsPage({
             <label htmlFor="notifyPhone" className="text-xs font-medium text-zinc-500">SMS alert number</label>
             <input id="notifyPhone" name="notifyPhone" type="tel"
               defaultValue={settings?.notifyPhone ?? ''} placeholder="+447700900123"
-              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className={INPUT}
             />
             <p className="text-xs text-zinc-400">Where to send the SMS when a lead comes in.</p>
           </div>
@@ -61,7 +140,7 @@ export default async function SettingsPage({
             <label htmlFor="notifyEmail" className="text-xs font-medium text-zinc-500">Email alert address</label>
             <input id="notifyEmail" name="notifyEmail" type="email"
               defaultValue={settings?.notifyEmail ?? ''} placeholder="you@example.com"
-              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              className={INPUT}
             />
             <p className="text-xs text-zinc-400">Where to send the email when a lead comes in.</p>
           </div>

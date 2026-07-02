@@ -2,11 +2,14 @@ import { NextRequest } from 'next/server'
 import db from '@/lib/db'
 import { generateFollowUpMessage } from '@/lib/ai/follow-up'
 import { calcNextFollowUpAt } from '@/lib/follow-up-scheduler'
+import { normaliseUKPhone } from '@/lib/phone-utils'
 import twilio from 'twilio'
 import { Resend } from 'resend'
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('secret')
+  const authHeader = req.headers.get('authorization')
+  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  const secret = bearer ?? req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('secret')
   if (secret !== process.env.CRON_SECRET) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -34,6 +37,7 @@ export async function GET(req: NextRequest) {
     try {
       const { sms, emailHtml, emailText } = await generateFollowUpMessage({
         businessName: business.name,
+        businessType: business.businessType,
         callerName: lead.callerName,
         issue: lead.description ?? lead.jobType,
         followUpCount: lead.followUpCount,
@@ -43,11 +47,11 @@ export async function GET(req: NextRequest) {
       if (settings.followUpSmsEnabled) {
         const sid = process.env.TWILIO_ACCOUNT_SID
         const token = process.env.TWILIO_AUTH_TOKEN
-        const from = business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
+        const from = process.env.TWILIO_SMS_FROM ?? business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
         if (sid && token && from) {
           try {
             const client = twilio(sid, token)
-            await client.messages.create({ from, to: lead.callerPhone, body: sms })
+            await client.messages.create({ from, to: normaliseUKPhone(lead.callerPhone), body: sms })
           } catch (e) {
             console.error('[follow-up] SMS error:', e)
           }

@@ -1,6 +1,7 @@
 import twilio from 'twilio'
 import { Resend } from 'resend'
 import type { Business, BusinessSettings, Lead } from '@prisma/client'
+import { normaliseUKPhone } from '@/lib/phone-utils'
 
 type NotifyPayload = {
   lead: Lead
@@ -11,14 +12,14 @@ type NotifyPayload = {
 export async function sendCallerConfirmation(lead: Lead, business: Business) {
   const sid = process.env.TWILIO_ACCOUNT_SID
   const token = process.env.TWILIO_AUTH_TOKEN
-  const from = business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
+  const from = process.env.TWILIO_SMS_FROM ?? business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
   if (!sid || !token || !from) return
 
   const firstName = lead.callerName?.split(' ')[0] ?? 'there'
   const body = `Hi ${firstName}, thanks for calling ${business.name}. We've received your details and will call you back shortly.`
 
   const client = twilio(sid, token)
-  await client.messages.create({ from, to: lead.callerPhone, body })
+  await client.messages.create({ from, to: normaliseUKPhone(lead.callerPhone), body })
 }
 
 export async function sendLeadNotifications(payload: NotifyPayload) {
@@ -39,12 +40,13 @@ export async function sendLeadNotifications(payload: NotifyPayload) {
 async function sendSMS({ lead, business, settings }: NotifyPayload) {
   const sid = process.env.TWILIO_ACCOUNT_SID
   const token = process.env.TWILIO_AUTH_TOKEN
-  const from = business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
+  const from = process.env.TWILIO_SMS_FROM ?? business.twilioPhoneNumber ?? process.env.TWILIO_FROM_NUMBER
 
   if (!sid || !token || !from) return
 
-  const to = settings.notifyPhone ?? business.ownerPhone ?? ''
-  if (!to) return
+  const rawTo = settings.notifyPhone ?? business.ownerPhone ?? ''
+  if (!rawTo) return
+  const to = normaliseUKPhone(rawTo)
   const body = formatSMS(settings.smsTemplate, lead)
 
   const client = twilio(sid, token)

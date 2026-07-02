@@ -1,8 +1,26 @@
 'use server'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import db from '@/lib/db'
 import { getCurrentBusiness } from '@/lib/onboarding'
 import { calcNextFollowUpAt } from '@/lib/follow-up-scheduler'
+
+export async function markLeadsViewed() {
+  const jar = await cookies()
+  jar.set('lastLeadsViewedAt', new Date().toISOString(), {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 365,
+  })
+}
+
+export async function deleteLead(leadId: string) {
+  const business = await getCurrentBusiness()
+  if (!business) throw new Error('Not authenticated')
+  await db.lead.delete({ where: { id: leadId, businessId: business.id } })
+  revalidatePath('/dashboard/leads')
+}
 
 export async function markAsContacted(leadId: string) {
   const business = await getCurrentBusiness()

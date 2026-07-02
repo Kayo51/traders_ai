@@ -130,6 +130,9 @@ model Business {
   plan                Plan              @default(FREE)
   isActive            Boolean           @default(true)
   trialEndsAt         DateTime?
+  stripeCustomerId    String?
+  stripeSubscriptionId String?
+  stripePriceId       String?
 
   // Onboarding fields
   onboardingCompleted Boolean           @default(false)

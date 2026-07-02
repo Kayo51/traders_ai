@@ -1,6 +1,16 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { getCurrentBusiness } from '@/lib/onboarding'
+import db from '@/lib/db'
 import Nav from './_components/nav'
+import { DashboardShell } from './_components/DashboardShell'
+
+async function getNewLeadCount(businessId: string): Promise<number> {
+  const jar = await cookies()
+  const raw = jar.get('lastLeadsViewedAt')?.value
+  const since = raw ? new Date(raw) : new Date(Date.now() - 24 * 60 * 60 * 1000)
+  return db.lead.count({ where: { businessId, createdAt: { gt: since } } })
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const business = await getCurrentBusiness()
@@ -9,24 +19,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect('/onboarding')
   }
 
-  return (
-    <div className="flex h-screen bg-zinc-50">
-      {/* Sidebar */}
-      <aside className="flex w-56 flex-col border-r border-zinc-800 bg-zinc-900">
-        <div className="flex h-14 items-center px-5 border-b border-zinc-800">
-          <a href="/" className="text-sm font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
-            TradeFlow AI
-          </a>
-        </div>
-        <div className="flex flex-1 flex-col py-4 overflow-y-auto">
-          <Nav />
-        </div>
-      </aside>
+  const newLeadCount = await getNewLeadCount(business.id)
 
-      {/* Main */}
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        {children}
-      </main>
-    </div>
+  const sidebar = (
+    <>
+      <div className="flex h-14 items-center px-5 border-b border-zinc-800">
+        <a href="/" className="text-sm font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
+          TradeFlow AI
+        </a>
+      </div>
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <Nav newLeadCount={newLeadCount} />
+      </div>
+    </>
+  )
+
+  return (
+    <DashboardShell sidebar={sidebar}>
+      {children}
+    </DashboardShell>
   )
 }

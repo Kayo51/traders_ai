@@ -2,6 +2,7 @@
 import db from '@/lib/db'
 import { getCurrentBusiness } from '@/lib/onboarding'
 import { revalidatePath } from 'next/cache'
+import type { ReceptionistAccent, ReceptionistTone } from '@prisma/client'
 
 export async function saveSettings(formData: FormData) {
   const business = await getCurrentBusiness()
@@ -12,24 +13,39 @@ export async function saveSettings(formData: FormData) {
     return isNaN(v) ? [5, 24, 36, 48][i] : v
   })
 
-  await db.businessSettings.update({
-    where: { businessId: business.id },
-    data: {
-      notifyPhone: (formData.get('notifyPhone') as string) || null,
-      notifyEmail: (formData.get('notifyEmail') as string) || null,
-      greetingMessage: formData.get('greetingMessage') as string,
-      customerFollowUpEnabled: formData.get('customerFollowUpEnabled') === 'on',
-      followUpSmsEnabled: formData.get('followUpSmsEnabled') === 'on',
-      followUpEmailEnabled: formData.get('followUpEmailEnabled') === 'on',
-      followUpDelays: delays,
-      followUpMaxDays: parseInt(formData.get('followUpMaxDays') as string, 10) || 7,
-      bookingEnabled:      formData.get('bookingEnabled') === 'on',
-      bookingWindowDays:   parseInt(formData.get('bookingWindowDays') as string, 10) || 5,
-      bookingSlotDuration: parseInt(formData.get('bookingSlotDuration') as string, 10) || 60,
-      bookingHoursStart:   parseInt(formData.get('bookingHoursStart') as string, 10) || 9,
-      bookingHoursEnd:     parseInt(formData.get('bookingHoursEnd') as string, 10) || 17,
-    },
-  })
+  const accent = (formData.get('receptionistAccent') as string) || null
+  const tone   = (formData.get('receptionistTone') as string) || null
+
+  await Promise.all([
+    db.business.update({
+      where: { id: business.id },
+      data: {
+        name:               (formData.get('businessName') as string)?.trim() || business.name,
+        receptionistName:   (formData.get('receptionistName') as string)?.trim() || null,
+        receptionistGender: (formData.get('receptionistGender') as string) || null,
+        receptionistAccent: (accent as ReceptionistAccent) || null,
+        receptionistTone:   (tone as ReceptionistTone) || null,
+      },
+    }),
+    db.businessSettings.update({
+      where: { businessId: business.id },
+      data: {
+        notifyPhone: (formData.get('notifyPhone') as string) || null,
+        notifyEmail: (formData.get('notifyEmail') as string) || null,
+        greetingMessage: formData.get('greetingMessage') as string,
+        customerFollowUpEnabled: formData.get('customerFollowUpEnabled') === 'on',
+        followUpSmsEnabled: formData.get('followUpSmsEnabled') === 'on',
+        followUpEmailEnabled: formData.get('followUpEmailEnabled') === 'on',
+        followUpDelays: delays,
+        followUpMaxDays: parseInt(formData.get('followUpMaxDays') as string, 10) || 7,
+        bookingEnabled:      formData.get('bookingEnabled') === 'on',
+        bookingWindowDays:   parseInt(formData.get('bookingWindowDays') as string, 10) || 5,
+        bookingSlotDuration: parseInt(formData.get('bookingSlotDuration') as string, 10) || 60,
+        bookingHoursStart:   parseInt(formData.get('bookingHoursStart') as string, 10) || 9,
+        bookingHoursEnd:     parseInt(formData.get('bookingHoursEnd') as string, 10) || 17,
+      },
+    }),
+  ])
 
   revalidatePath('/dashboard/settings')
 }

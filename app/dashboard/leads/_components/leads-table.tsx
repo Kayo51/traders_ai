@@ -20,6 +20,7 @@ const COLUMNS = [
   { key: 'status',      label: 'Status' },
   { key: 'action',      label: 'Action',   noSort: true },
   { key: 'createdAt',   label: 'Received' },
+  { key: 'delete',      label: '',          noSort: true },
 ]
 
 // Time grouping helpers (same logic as before)
@@ -181,8 +182,8 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
           {grouped!.map(group => (
             <div key={group.label}>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">{group.label}</h2>
-              <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+                <table className="w-full min-w-[640px] text-sm">
                   {tableHeader}
                   <tbody className="divide-y divide-zinc-100">{renderRows(group.leads)}</tbody>
                 </table>
@@ -192,8 +193,8 @@ export function LeadsTable({ leads, currentSort, currentDir, currentStatus }: {
         </div>
       ) : (
         /* Flat sorted / search results view */
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+          <table className="w-full min-w-[640px] text-sm">
             {tableHeader}
             <tbody className="divide-y divide-zinc-100">{renderRows(filtered)}</tbody>
           </table>

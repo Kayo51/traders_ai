@@ -4,6 +4,7 @@ const client = new Anthropic()
 
 export async function generateFollowUpMessage(opts: {
   businessName: string
+  businessType?: string | null
   callerName: string | null
   issue: string | null
   followUpCount: number
@@ -11,10 +12,16 @@ export async function generateFollowUpMessage(opts: {
   const firstName = opts.callerName?.split(' ')[0] ?? 'there'
   const ordinal = ['first', 'second', 'third', 'fourth', 'fifth'][opts.followUpCount] ?? `follow-up #${opts.followUpCount + 1}`
 
+  const TRADE_NAMES: Record<string, string> = {
+    PLUMBER: 'plumbing', ELECTRICIAN: 'electrical', HEATING_ENGINEER: 'heating and boiler',
+    BUILDER: 'building and construction', LOCKSMITH: 'locksmith', CLEANING_COMPANY: 'cleaning', HVAC: 'HVAC',
+  }
+  const trade = opts.businessType ? (TRADE_NAMES[opts.businessType] ?? 'trade') : 'trade'
+
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 400,
-    system: `You write warm, professional follow-up messages for ${opts.businessName}, a UK plumbing business, to send to customers who are waiting for a callback.
+    system: `You write warm, professional follow-up messages for ${opts.businessName}, a UK ${trade} business, to send to customers who are waiting for a callback.
 
 The customer's first name is ${firstName}.
 Their issue: ${opts.issue ?? 'a plumbing problem'}.
