@@ -147,6 +147,9 @@ model Business {
   receptionistTone    ReceptionistTone?
   receptionistGender  String?
 
+  greetingAudioMp3    Bytes?
+  greetingAudioHash   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -208,6 +211,8 @@ model BusinessSettings {
   bookingSlotDuration Int     @default(60)
   bookingHoursStart  Int      @default(9)
   bookingHoursEnd    Int      @default(17)
+  // UK GDPR — how many days to keep caller personal data (null = never auto-delete)
+  dataRetentionDays  Int?     @default(365)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

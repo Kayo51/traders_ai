@@ -78,7 +78,8 @@ export async function POST(req: NextRequest) {
     return gatherResponse(audioId, qaUrl)
   }
 
-  const text = "Perfect. The plumber will be in touch very soon. Take care, goodbye!"
+  // PECR soft opt-in: inform caller a follow-up text may be sent
+  const text = "Perfect. The plumber will be in touch very soon. We may send you a text to follow up — reply STOP at any time to opt out. Take care, goodbye!"
   await Promise.all([
     generateAudio(text).then(buf => storeAudio(audioId, buf)),
     markCallCompleted(callSid),

@@ -84,7 +84,6 @@ export default function NumberAssignment({ initialNumber }: { initialNumber?: st
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               className="flex flex-col items-center gap-6"
             >
-              {/* Success icon */}
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -96,7 +95,6 @@ export default function NumberAssignment({ initialNumber }: { initialNumber?: st
                 </svg>
               </motion.div>
 
-              {/* Number display */}
               <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
                   Your dedicated number
@@ -111,7 +109,6 @@ export default function NumberAssignment({ initialNumber }: { initialNumber?: st
                 </motion.p>
               </div>
 
-              {/* Info cards */}
               <div className="grid w-full grid-cols-2 gap-3">
                 {[
                   { icon: '📞', label: 'Answers calls', desc: '24/7 automatically' },
@@ -151,7 +148,7 @@ export default function NumberAssignment({ initialNumber }: { initialNumber?: st
               <p className="text-white font-semibold">Something went wrong</p>
               <p className="text-sm text-zinc-500">We couldn&apos;t assign a number. Please try again.</p>
               <button
-                onClick={() => setPhase('searching')}
+                onClick={() => { setPhase('searching') }}
                 className="rounded-xl border border-white/10 px-6 py-2.5 text-sm font-medium text-white hover:bg-white/5"
               >
                 Retry

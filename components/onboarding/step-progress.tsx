@@ -5,10 +5,11 @@ const STEPS = [
   { label: 'Choose Plan', key: 'plan' },
   { label: 'Your Number', key: 'number' },
   { label: 'Setup', key: 'setup' },
+  { label: 'Payment', key: 'payment' },
   { label: 'Complete', key: 'complete' },
 ]
 
-type Props = { current: 'plan' | 'number' | 'setup' | 'complete' }
+type Props = { current: 'plan' | 'number' | 'setup' | 'payment' | 'complete' }
 
 export default function StepProgress({ current }: Props) {
   const currentIndex = STEPS.findIndex(s => s.key === current)

@@ -64,12 +64,14 @@ function Spinner() {
 
 export default function PlanSelector() {
   const [selected, setSelected] = useState<Plan | null>(null)
+  const [trialMode, setTrialMode] = useState<boolean | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const handleSelect = (plan: Plan) => {
+  const handleSelect = (plan: Plan, trial: boolean) => {
     setSelected(plan)
+    setTrialMode(trial)
     startTransition(async () => {
-      await selectPlan(plan)
+      await selectPlan(plan, trial)
     })
   }
 
@@ -84,15 +86,11 @@ export default function PlanSelector() {
           transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
           className="relative"
         >
-          <button
-            onClick={() => handleSelect('ESSENTIAL')}
-            disabled={isPending}
-            className={`group relative w-full rounded-2xl border bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-6 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
-              selected === 'ESSENTIAL'
-                ? 'border-blue-500/60'
-                : 'border-white/[0.08] hover:border-white/20'
-            }`}
-          >
+          <div className={`group relative w-full rounded-2xl border bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-6 text-left transition-all duration-200 ${
+            selected === 'ESSENTIAL'
+              ? 'border-blue-500/60'
+              : 'border-white/[0.08]'
+          }`}>
             {/* Header */}
             <div className="mb-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Ideal for sole traders</p>
@@ -115,15 +113,22 @@ export default function PlanSelector() {
               ))}
             </ul>
 
-            {/* CTA */}
-            <div className={`flex h-11 items-center justify-center rounded-xl font-semibold text-sm transition-all ${
-              selected === 'ESSENTIAL'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
-                : 'bg-white/5 text-zinc-300 group-hover:bg-white/10'
-            }`}>
-              {isPending && selected === 'ESSENTIAL' ? <Spinner /> : 'Select Essential'}
-            </div>
-          </button>
+            {/* CTAs */}
+            <button
+              onClick={() => handleSelect('ESSENTIAL', true)}
+              disabled={isPending}
+              className="w-full flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 font-semibold text-sm text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isPending && selected === 'ESSENTIAL' && trialMode === true ? <Spinner /> : 'Start 14-day free trial'}
+            </button>
+            <button
+              onClick={() => handleSelect('ESSENTIAL', false)}
+              disabled={isPending}
+              className="mt-2 w-full flex h-9 items-center justify-center rounded-xl text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isPending && selected === 'ESSENTIAL' && trialMode === false ? <Spinner /> : 'Pay monthly — no trial →'}
+            </button>
+          </div>
         </motion.div>
 
         {/* ── Professional ── */}
@@ -140,15 +145,11 @@ export default function PlanSelector() {
             </span>
           </div>
 
-          <button
-            onClick={() => handleSelect('PROFESSIONAL')}
-            disabled={isPending}
-            className={`group relative w-full rounded-2xl border bg-gradient-to-br from-violet-500/15 to-blue-500/10 p-8 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ring-1 ring-violet-500/20 shadow-[0_0_40px_rgba(139,92,246,0.12)] ${
-              selected === 'PROFESSIONAL'
-                ? 'border-violet-500'
-                : 'border-violet-500/40 hover:border-violet-500/70'
-            }`}
-          >
+          <div className={`group relative w-full rounded-2xl border bg-gradient-to-br from-violet-500/15 to-blue-500/10 p-8 text-left transition-all duration-200 ring-1 ring-violet-500/20 shadow-[0_0_40px_rgba(139,92,246,0.12)] ${
+            selected === 'PROFESSIONAL'
+              ? 'border-violet-500'
+              : 'border-violet-500/40'
+          }`}>
             {/* Header */}
             <div className="mb-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
@@ -173,21 +174,28 @@ export default function PlanSelector() {
               ))}
             </ul>
 
-            {/* CTA */}
-            <div className={`flex h-11 items-center justify-center rounded-xl font-semibold text-sm transition-all ${
-              selected === 'PROFESSIONAL'
-                ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white shadow-lg shadow-violet-500/30'
-                : 'bg-violet-500/10 text-violet-200 group-hover:bg-violet-500/20'
-            }`}>
-              {isPending && selected === 'PROFESSIONAL' ? <Spinner /> : 'Select Professional'}
-            </div>
-          </button>
+            {/* CTAs */}
+            <button
+              onClick={() => handleSelect('PROFESSIONAL', true)}
+              disabled={isPending}
+              className="w-full flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 font-semibold text-sm text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isPending && selected === 'PROFESSIONAL' && trialMode === true ? <Spinner /> : 'Start 14-day free trial'}
+            </button>
+            <button
+              onClick={() => handleSelect('PROFESSIONAL', false)}
+              disabled={isPending}
+              className="mt-2 w-full flex h-9 items-center justify-center rounded-xl text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isPending && selected === 'PROFESSIONAL' && trialMode === false ? <Spinner /> : 'Pay monthly — no trial →'}
+            </button>
+          </div>
         </motion.div>
 
       </div>
 
       <p className="mt-8 text-center text-xs text-zinc-600">
-        No credit card required · Cancel anytime · Upgrade or downgrade at any time
+        No credit card required for trial · Cancel anytime · No contracts
       </p>
     </div>
   )

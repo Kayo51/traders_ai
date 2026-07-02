@@ -1,12 +1,14 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { auth } from '@clerk/nextjs/server'
 import db from '@/lib/db'
 import { getCurrentBusiness, ensureUserAndBusiness, generateSimulatedNumber } from '@/lib/onboarding'
 
-export async function selectPlan(plan: 'ESSENTIAL' | 'PROFESSIONAL') {
-  await ensureUserAndBusiness(plan)
+export async function selectPlan(plan: 'ESSENTIAL' | 'PROFESSIONAL', trial = false) {
+  const trialEndsAt = trial
+    ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    : undefined
+  await ensureUserAndBusiness(plan, trialEndsAt)
   redirect('/onboarding/number')
 }
 
@@ -25,19 +27,12 @@ export async function assignNumber() {
     try {
       const twilio = (await import('twilio')).default
       const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-
       const appUrl = process.env.NEXT_PUBLIC_APP_URL!
-
       const country = process.env.TWILIO_COUNTRY ?? 'US'
 
-      // Step 1: search for an available number in the configured country
-      const available = await client
-        .availablePhoneNumbers(country)
-        .local.list({ limit: 1 })
-
+      const available = await client.availablePhoneNumbers(country).local.list({ limit: 1 })
       if (!available.length) throw new Error(`No ${country} numbers available`)
 
-      // Step 2: purchase it and wire up webhooks
       const createParams: Record<string, string> = {
         phoneNumber: available[0].phoneNumber,
         voiceUrl: `${appUrl}/api/twilio/voice`,
@@ -46,8 +41,6 @@ export async function assignNumber() {
         statusCallbackMethod: 'POST',
       }
 
-      // UK numbers require a regulatory bundle and address.
-      // US numbers do not — these are ignored when TWILIO_COUNTRY=US.
       if (country !== 'US' && process.env.TWILIO_BUNDLE_SID) createParams.bundleSid = process.env.TWILIO_BUNDLE_SID
       if (country !== 'US' && process.env.TWILIO_ADDRESS_SID) createParams.addressSid = process.env.TWILIO_ADDRESS_SID
 
@@ -101,7 +94,7 @@ export async function saveSetup(formData: FormData) {
       receptionistGender,
       receptionistAccent: receptionistAccent as any,
       receptionistTone: receptionistTone as any,
-      onboardingCompleted: true,
+      // onboardingCompleted is set after successful payment on the complete page
     },
   })
 
@@ -116,7 +109,11 @@ export async function saveSetup(formData: FormData) {
     })
   }
 
-  redirect('/onboarding/complete')
+  // Trial users skip payment and go straight to complete
+  if (business.trialEndsAt) {
+    redirect('/onboarding/complete')
+  }
+  redirect('/onboarding/payment')
 }
 
 export async function simulateTestCall() {

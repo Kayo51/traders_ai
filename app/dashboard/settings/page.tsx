@@ -262,6 +262,44 @@ export default async function SettingsPage({
           </div>
         </section>
 
+        {/* === Data Protection === */}
+        <section className="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-100">
+          <div className="px-5 py-4">
+            <h2 className="text-sm font-semibold text-zinc-900">Data Protection</h2>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              UK GDPR requires you to keep personal data only as long as necessary.
+              Caller names, phone numbers, postcodes, and conversation transcripts are automatically
+              deleted after this period.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1 px-5 py-4">
+            <label htmlFor="dataRetentionDays" className="text-xs font-medium text-zinc-500">
+              Delete caller data after
+            </label>
+            <select
+              id="dataRetentionDays"
+              name="dataRetentionDays"
+              defaultValue={
+                (settings as any)?.dataRetentionDays == null
+                  ? 'never'
+                  : String((settings as any).dataRetentionDays)
+              }
+              className={SELECT}
+            >
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="180">6 months</option>
+              <option value="365">1 year (recommended)</option>
+              <option value="730">2 years</option>
+              <option value="never">Never (manual deletion only)</option>
+            </select>
+            <p className="text-xs text-zinc-400">
+              Leads, call records, and transcripts older than this are permanently deleted each night.
+              Choosing &quot;Never&quot; means you are responsible for manually deleting data on request.
+            </p>
+          </div>
+        </section>
+
         <div className="flex justify-end">
           <button type="submit"
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"

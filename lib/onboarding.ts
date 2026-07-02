@@ -23,7 +23,10 @@ export const getCurrentBusiness = cache(async () => {
   return user?.memberships[0]?.business ?? null
 })
 
-export async function ensureUserAndBusiness(plan: 'STARTER' | 'ESSENTIAL' | 'PROFESSIONAL' | 'ENTERPRISE') {
+export async function ensureUserAndBusiness(
+  plan: 'STARTER' | 'ESSENTIAL' | 'PROFESSIONAL' | 'ENTERPRISE',
+  trialEndsAt?: Date,
+) {
   const clerkUser = await currentUser()
   if (!clerkUser) throw new Error('Not authenticated')
 
@@ -49,7 +52,7 @@ export async function ensureUserAndBusiness(plan: 'STARTER' | 'ESSENTIAL' | 'PRO
   if (existing) {
     return db.business.update({
       where: { id: existing.businessId },
-      data: { subscriptionPlan: plan },
+      data: { subscriptionPlan: plan, ...(trialEndsAt ? { trialEndsAt } : {}) },
     })
   }
 
@@ -61,6 +64,7 @@ export async function ensureUserAndBusiness(plan: 'STARTER' | 'ESSENTIAL' | 'PRO
       slug,
       ownerEmail: email,
       subscriptionPlan: plan,
+      ...(trialEndsAt ? { trialEndsAt } : {}),
       members: { create: { userId: user.id, role: 'OWNER' } },
       settings: { create: {} },
     },

@@ -3,6 +3,7 @@ import db from '@/lib/db'
 import { getCurrentBusiness } from '@/lib/onboarding'
 import { revalidatePath } from 'next/cache'
 import type { ReceptionistAccent, ReceptionistTone } from '@prisma/client'
+import { generateAndCacheGreeting } from '@/lib/greeting-cache'
 
 export async function saveSettings(formData: FormData) {
   const business = await getCurrentBusiness()
@@ -43,11 +44,19 @@ export async function saveSettings(formData: FormData) {
         bookingSlotDuration: parseInt(formData.get('bookingSlotDuration') as string, 10) || 60,
         bookingHoursStart:   parseInt(formData.get('bookingHoursStart') as string, 10) || 9,
         bookingHoursEnd:     parseInt(formData.get('bookingHoursEnd') as string, 10) || 17,
+        dataRetentionDays:   formData.get('dataRetentionDays') === 'never'
+          ? null
+          : parseInt(formData.get('dataRetentionDays') as string, 10) || 365,
       },
     }),
   ])
 
   revalidatePath('/dashboard/settings')
+
+  // Refresh cached greeting in the background — voice/accent/name or message may have changed
+  generateAndCacheGreeting(business.id).catch(err =>
+    console.error('[settings] greeting cache refresh failed:', err)
+  )
 }
 
 export async function disconnectGoogleCalendar() {

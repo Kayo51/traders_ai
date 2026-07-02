@@ -13,14 +13,16 @@ export default async function OnboardingRoot() {
   }
 
   if (!business.twilioPhoneNumber) {
-    if (!business.subscriptionPlan) {
-      redirect('/onboarding/plan')
-    }
     redirect('/onboarding/number')
   }
 
   if (!business.receptionistName) {
     redirect('/onboarding/setup')
+  }
+
+  const hasActiveTrial = business.trialEndsAt && business.trialEndsAt > new Date()
+  if (!business.stripeSubscriptionId && !hasActiveTrial) {
+    redirect('/onboarding/payment')
   }
 
   redirect('/onboarding/complete')

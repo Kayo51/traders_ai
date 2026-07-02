@@ -252,7 +252,7 @@ function HeroContent({ onBookDemo }: { onBookDemo: () => void }) {
   )
 }
 
-// ─── WhatsApp notification card (for Live Demo section) ────────────────────────
+// ─── SMS notification card (for Live Demo section) ─────────────────────────────
 
 function WACard({ delay, title, lines, time }: {
   delay: number; title: string; lines: string[]; time: string
@@ -473,7 +473,7 @@ export default function LandingPage() {
                 {[
                   { label: 'Answers in under 1 second', sub: 'No hold music. No voicemail.' },
                   { label: 'Natural AI voice conversation', sub: 'Callers don\'t know it\'s AI.' },
-                  { label: 'Instant SMS & WhatsApp alerts', sub: 'You get the lead immediately.' },
+                  { label: 'Instant SMS & email alerts', sub: 'You get the lead immediately.' },
                 ].map((item, i) => (
                   <motion.div
                     key={i}
@@ -524,7 +524,7 @@ export default function LandingPage() {
                     { n: '01', title: 'Customer calls your business', desc: 'Every inbound call goes straight to your TradeFlow AI — no hold music, no voicemail, no missed rings.' },
                     { n: '02', title: 'AI answers instantly', desc: 'Your AI receptionist greets the caller naturally and asks the right questions about their job.' },
                     { n: '03', title: 'Job details are saved', desc: 'Name, number, postcode, issue — all captured in seconds and saved to your dashboard.' },
-                    { n: '04', title: 'Sent to you immediately', desc: 'You get a WhatsApp notification the moment the call ends. The lead is yours.' },
+                    { n: '04', title: 'Sent to you immediately', desc: 'You get an SMS alert the moment the call ends. The lead is yours.' },
                   ].map((s, i) => (
                     <motion.div
                       key={i}
@@ -631,7 +631,7 @@ export default function LandingPage() {
               <div className="flex flex-col gap-8">
                 {[
                   { when: 'During the call', title: 'Calendar slot locked in', desc: 'While the AI is still on the phone, it pulls your live availability and agrees a date and time with the caller — no back and forth.' },
-                  { when: 'The moment the call ends', title: 'You get the WhatsApp alert', desc: 'Full lead details — name, number, postcode, job type, urgency — delivered to your WhatsApp before you\'ve even put down your tools.' },
+                  { when: 'The moment the call ends', title: 'You get the SMS alert', desc: 'Full lead details — name, number, postcode, job type, urgency — delivered by text before you\'ve even put down your tools.' },
                   { when: 'Instantly after', title: 'Caller gets a confirmation SMS', desc: 'Your customer receives their booking details automatically. Professionalises your business without any manual effort.' },
                   { when: '24 hours before the job', title: 'Reminder sent to the caller', desc: 'Cuts no-shows. Your customer gets a reminder so they\'re ready, and you don\'t waste a trip.' },
                   { when: '48h with no response', title: 'Re-engagement triggered', desc: 'If a caller never confirmed their slot, TradeFlow follows up automatically — recovering leads that would otherwise go cold.' },
@@ -735,7 +735,7 @@ export default function LandingPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { title: 'AI Voice Receptionist', desc: 'Answers every call in under a second. Natural voice, no hold music, available 24 hours a day, 7 days a week.', accent: 'border-blue-500/15 from-blue-500/8' },
-              { title: 'WhatsApp & SMS Alerts', desc: 'Full lead details delivered to your WhatsApp or SMS the moment the call ends — before you\'ve put your tools down.', accent: 'border-emerald-500/15 from-emerald-500/8' },
+              { title: 'Instant SMS Alerts', desc: 'Full lead details delivered by text the moment the call ends — before you\'ve put your tools down.', accent: 'border-emerald-500/15 from-emerald-500/8' },
               { title: 'Live Calendar Booking', desc: 'The AI checks your real availability during the call and locks in a date and time before the conversation ends.', accent: 'border-violet-500/15 from-violet-500/8' },
               { title: 'Customer Confirmation SMS', desc: 'Every caller receives a professional booking confirmation immediately after the call. No manual follow-up required.', accent: 'border-cyan-500/15 from-cyan-500/8' },
               { title: 'Appointment Reminders', desc: 'Automated reminders sent to your customers before the job — cutting no-shows and wasted journeys.', accent: 'border-indigo-500/15 from-indigo-500/8' },
@@ -832,15 +832,15 @@ export default function LandingPage() {
               <PricingCard
                 name="Starter"
                 price="£99"
-                desc="AI receptionist + WhatsApp + lead capture"
+                desc="AI receptionist + SMS alerts + lead capture"
                 features={[
                   'AI voice receptionist 24/7',
-                  'WhatsApp lead notifications',
+                  'Instant SMS lead alerts',
                   'Lead capture dashboard',
                   'SMS & email alerts',
                   'Up to 500 calls/month',
                 ]}
-                cta="Get Started"
+                cta="Start Free Trial"
               />
             </motion.div>
             <motion.div
@@ -862,7 +862,7 @@ export default function LandingPage() {
                   'Follow-up automation',
                   'Unlimited calls',
                 ]}
-                cta="Get Started — Best Value"
+                cta="Start Free Trial — Best Value"
               />
             </motion.div>
           </div>

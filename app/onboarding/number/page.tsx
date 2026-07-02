@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
-import { getCurrentBusiness } from '@/lib/onboarding'
-import { formatPhoneNumber } from '@/lib/onboarding'
+import { getCurrentBusiness, formatPhoneNumber } from '@/lib/onboarding'
 import NumberAssignment from './number-assignment'
 import StepProgress from '@/components/onboarding/step-progress'
+
+export const dynamic = 'force-dynamic'
 
 export default async function NumberPage() {
   const business = await getCurrentBusiness()

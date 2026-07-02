@@ -4,6 +4,7 @@ import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
 import Nav from './_components/nav'
 import { DashboardShell } from './_components/DashboardShell'
+import { TrialBanner } from './_components/TrialBanner'
 
 async function getNewLeadCount(businessId: string): Promise<number> {
   const jar = await cookies()
@@ -17,6 +18,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!business || !business.onboardingCompleted) {
     redirect('/onboarding')
+  }
+
+  const hasSubscription = !!business.stripeSubscriptionId
+  const trialEndsAt = business.trialEndsAt
+  const trialActive = trialEndsAt && trialEndsAt > new Date()
+
+  // Trial expired and no paid subscription — send to payment
+  if (!hasSubscription && !trialActive) {
+    redirect('/onboarding/payment')
   }
 
   const newLeadCount = await getNewLeadCount(business.id)
@@ -36,6 +46,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <DashboardShell sidebar={sidebar}>
+      {!hasSubscription && trialActive && trialEndsAt && (
+        <TrialBanner trialEndsAt={trialEndsAt} />
+      )}
       {children}
     </DashboardShell>
   )

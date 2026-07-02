@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/follow-ups",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/purge-data",
+      "schedule": "0 2 * * *"
     }
   ]
 }

@@ -4,6 +4,7 @@ import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
 import { NotesEditor } from './_components/NotesEditor'
 import { StatusSelector } from './_components/StatusSelector'
+import { DeleteLeadButton } from './_components/DeleteLeadButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,13 +56,16 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-8 flex flex-col gap-6">
 
-      {/* Back */}
+      {/* Back + delete */}
+      <div className="flex items-center justify-between">
       <Link href="/dashboard/leads" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors w-fit">
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
         </svg>
         All Leads
       </Link>
+      <DeleteLeadButton leadId={lead.id} />
+      </div>
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">

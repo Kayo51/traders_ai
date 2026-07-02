@@ -1,8 +1,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getCurrentBusiness } from '@/lib/onboarding'
-import { formatPhoneNumber } from '@/lib/onboarding'
+import { getCurrentBusiness, formatPhoneNumber } from '@/lib/onboarding'
+import { stripe } from '@/lib/stripe'
+import db from '@/lib/db'
+import { generateAndCacheGreeting } from '@/lib/greeting-cache'
 import CompleteAnimation from './complete-animation'
+
+export const dynamic = 'force-dynamic'
 
 const PLAN_LABELS: Record<string, string> = {
   ESSENTIAL: 'Essential — £99/month',
@@ -12,41 +16,122 @@ const PLAN_LABELS: Record<string, string> = {
 }
 
 const VOICE_LABELS: Record<string, string> = {
-  EMMA: 'Emma',
-  SARAH: 'Sarah',
-  JAMES: 'James',
-  OLIVER: 'Oliver',
+  EMMA: 'Emma', SARAH: 'Sarah', JAMES: 'James', OLIVER: 'Oliver',
 }
 
 const ACCENT_LABELS: Record<string, string> = {
-  BRITISH: 'British',
-  AMERICAN: 'American',
-  AUSTRALIAN: 'Australian',
-  IRISH: 'Irish',
-  SCOTTISH: 'Scottish',
+  BRITISH: 'British', AMERICAN: 'American', AUSTRALIAN: 'Australian',
+  IRISH: 'Irish', SCOTTISH: 'Scottish',
 }
 
-export default async function CompletePage() {
-  const business = await getCurrentBusiness()
+export default async function CompletePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ session_id?: string }>
+}) {
+  const { session_id } = await searchParams
+
+  // Try to get the business from the authenticated session
+  let business = await getCurrentBusiness()
+
+  // If auth session was lost on return from Stripe (common in dev/ngrok),
+  // find the business directly via the Stripe session metadata.
+  // NOTE: redirect() throws internally in Next.js — must be called OUTSIDE try/catch.
+  if (!business && session_id) {
+    let postPaymentRedirect: string | null = null
+    try {
+      const stripeSession = await stripe.checkout.sessions.retrieve(session_id)
+
+      if (
+        stripeSession.payment_status === 'paid' &&
+        stripeSession.customer &&
+        stripeSession.subscription
+      ) {
+        const businessId =
+          stripeSession.client_reference_id ?? (stripeSession.metadata?.businessId as string | undefined)
+
+        if (businessId) {
+          await db.business.update({
+            where: { id: businessId },
+            data: {
+              stripeCustomerId: stripeSession.customer as string,
+              stripeSubscriptionId: stripeSession.subscription as string,
+              onboardingCompleted: true,
+            },
+          })
+          generateAndCacheGreeting(businessId).catch(err =>
+            console.error('[complete] greeting cache failed:', err)
+          )
+          postPaymentRedirect = '/sign-in?redirect_url=/dashboard/leads'
+        }
+      }
+    } catch (err) {
+      console.error('[onboarding/complete] Stripe session lookup failed:', err)
+    }
+
+    redirect(postPaymentRedirect ?? '/onboarding/payment?error=1')
+  }
 
   if (!business) redirect('/onboarding/plan')
-  if (!business.onboardingCompleted) redirect('/onboarding/setup')
 
-  const phone = business.twilioPhoneNumber
-    ? formatPhoneNumber(business.twilioPhoneNumber)
-    : '—'
+  // Trial user completing onboarding without Stripe payment
+  if (!business.onboardingCompleted && !session_id && business.trialEndsAt) {
+    await db.business.update({
+      where: { id: business.id },
+      data: { onboardingCompleted: true },
+    })
+    generateAndCacheGreeting(business.id).catch(err =>
+      console.error('[complete] greeting cache failed:', err)
+    )
+  }
+
+  // Normal authenticated flow — verify payment if returning from Stripe checkout
+  if (session_id && !business.onboardingCompleted) {
+    try {
+      const stripeSession = await stripe.checkout.sessions.retrieve(session_id)
+
+      if (stripeSession.payment_status === 'paid' && stripeSession.customer && stripeSession.subscription) {
+        await db.business.update({
+          where: { id: business.id },
+          data: {
+            stripeCustomerId: stripeSession.customer as string,
+            stripeSubscriptionId: stripeSession.subscription as string,
+            onboardingCompleted: true,
+          },
+        })
+        generateAndCacheGreeting(business.id).catch(err =>
+          console.error('[complete] greeting cache failed:', err)
+        )
+      } else {
+        redirect('/onboarding/payment?error=1')
+      }
+    } catch (err) {
+      console.error('[onboarding/complete] Stripe verify failed:', err)
+      redirect('/onboarding/payment?error=1')
+    }
+  }
+
+  // Re-fetch fresh state
+  const fresh = await db.business.findUnique({
+    where: { id: business.id },
+    include: { settings: true },
+  })
+
+  if (!fresh?.onboardingCompleted) redirect('/onboarding/payment')
+
+  const phone = fresh.twilioPhoneNumber ? formatPhoneNumber(fresh.twilioPhoneNumber) : '—'
 
   const summaryItems = [
-    { label: 'Business', value: business.name },
+    { label: 'Business', value: fresh.name },
     { label: 'Your Number', value: phone },
-    { label: 'Receptionist', value: business.receptionistName ?? '—' },
+    { label: 'Receptionist', value: fresh.receptionistName ?? '—' },
     {
       label: 'Voice',
-      value: business.receptionistVoice
-        ? `${VOICE_LABELS[business.receptionistVoice]} · ${ACCENT_LABELS[business.receptionistAccent ?? 'BRITISH']}`
+      value: fresh.receptionistVoice
+        ? `${VOICE_LABELS[fresh.receptionistVoice]} · ${ACCENT_LABELS[fresh.receptionistAccent ?? 'BRITISH']}`
         : '—',
     },
-    { label: 'Plan', value: PLAN_LABELS[business.subscriptionPlan ?? ''] ?? '—' },
+    { label: 'Plan', value: PLAN_LABELS[fresh.subscriptionPlan ?? ''] ?? '—' },
   ]
 
   return (
@@ -74,7 +159,7 @@ export default async function CompletePage() {
             Test My Receptionist
           </Link>
           <Link
-            href="/dashboard"
+            href="/dashboard/leads"
             className="flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-violet-500 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:shadow-blue-500/30"
           >
             Go To Dashboard →

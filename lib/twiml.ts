@@ -24,6 +24,15 @@ export function gatherResponse(audioId: string, actionUrl: string): Response {
   `)
 }
 
+export function gatherResponseWithPlay(playUrl: string, actionUrl: string): Response {
+  return xml(`
+    <Gather input="speech" action="${actionUrl}" speechTimeout="auto" timeout="10" language="${LANGUAGE}">
+      <Play>${playUrl}</Play>
+    </Gather>
+    <Redirect method="POST">${actionUrl}</Redirect>
+  `)
+}
+
 export function gatherResponseWithSay(text: string, actionUrl: string): Response {
   return xml(`
     <Gather input="speech" action="${actionUrl}" speechTimeout="auto" timeout="10" language="${LANGUAGE}">

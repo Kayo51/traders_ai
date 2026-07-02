@@ -11,7 +11,7 @@ export default function PlanPage() {
           Choose your plan
         </h1>
         <p className="mt-3 text-zinc-400">
-          Start capturing leads from day one. No contracts. Cancel anytime.
+          Try it free for 14 days — no credit card required. Cancel anytime.
         </p>
       </div>
 
