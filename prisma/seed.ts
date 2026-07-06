@@ -14,7 +14,7 @@ async function main() {
     create: {
       name: 'Dev Plumbing Co',
       slug: 'dev-plumbing',
-      ownerEmail: 'dev@tradeflow.ai',
+      ownerEmail: 'dev@jobbellai.co.uk',
       ownerPhone: '07700900000',
     },
   })

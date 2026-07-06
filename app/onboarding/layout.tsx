@@ -14,7 +14,7 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
       <header className="relative z-10 border-b border-white/[0.05] px-6 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <Link href="/" className="text-sm font-semibold text-white hover:text-zinc-300 transition-colors">
-            TradeFlow AI
+            JobBell
           </Link>
           <span className="text-xs text-zinc-600">Setup your account</span>
         </div>

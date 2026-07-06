@@ -58,6 +58,7 @@ enum BusinessType {
 enum LeadStatus {
   NEW
   CONTACTED
+  QUOTED
   BOOKED
   COMPLETED
   LOST
@@ -206,6 +207,7 @@ model BusinessSettings {
   googleRefreshToken String?
   googleTokenExpiry  DateTime?
   googleCalendarId   String?
+  googlePlaceId      String?
   bookingEnabled     Boolean  @default(false)
   bookingWindowDays  Int      @default(5)
   bookingSlotDuration Int     @default(60)
@@ -309,6 +311,13 @@ model Lead {
   appointmentStart  DateTime?
   appointmentEnd    DateTime?
   googleEventId     String?
+  reminder24hSentAt   DateTime?
+  reminder5hSentAt    DateTime?
+  onMyWaySentAt       DateTime?
+  reviewRequestSentAt DateTime?
+  quoteSentAt         DateTime?
+  quoteChase1SentAt   DateTime?
+  quoteChase2SentAt   DateTime?
   smsSentAt   DateTime?
   emailSentAt DateTime?
   createdAt   DateTime   @default(now())
@@ -321,4 +330,15 @@ model Lead {
   @@index([businessId, status])
   @@index([businessId, urgency])
   @@index([businessId, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// TTS Cache (ElevenLabs response deduplication)
+// ─────────────────────────────────────────────
+
+model TtsCache {
+  hash      String   @id          // sha256(cleanText|voiceId), first 32 hex chars
+  audio     Bytes
+  hitCount  Int      @default(0)
+  createdAt DateTime @default(now())
 }

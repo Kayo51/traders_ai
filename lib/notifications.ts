@@ -61,13 +61,17 @@ const URGENCY_EMOJI: Record<string, string> = {
 }
 
 function formatSMS(template: string, lead: Lead): string {
-  return template
+  const body = template
     .replace('{name}', lead.callerName ?? 'Unknown')
     .replace('{phone}', lead.callerPhone)
     .replace('{jobType}', lead.jobType ?? lead.description ?? 'Not specified')
     .replace('{urgency}', URGENCY_EMOJI[lead.urgency] ?? lead.urgency)
     .replace('{postcode}', lead.postcode ?? 'Not provided')
     .replace('{address}', [lead.postcode, lead.address].filter(Boolean).join(', ') || 'Not provided')
+
+  // Always end with a tappable call prompt so the number is obvious on the lock screen
+  const callLine = `📞 Tap to call: ${lead.callerPhone}`
+  return body.includes(callLine) ? body : `${body}\n${callLine}`
 }
 
 // ─── Email ───────────────────────────────────────────────────────────────────
@@ -77,7 +81,7 @@ async function sendEmail({ lead, business, settings }: NotifyPayload) {
   if (!apiKey) return
 
   const to = settings.notifyEmail ?? business.ownerEmail
-  const from = process.env.RESEND_FROM_EMAIL ?? 'alerts@tradeflow.ai'
+  const from = process.env.RESEND_FROM_EMAIL ?? 'alerts@jobbellai.co.uk'
 
   const resend = new Resend(apiKey)
   await resend.emails.send({
@@ -113,14 +117,18 @@ function emailHtml(lead: Lead, business: Business): string {
 <body style="margin:0;padding:0;background:#f9fafb;font-family:sans-serif">
   <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
     <div style="background:#18181b;padding:24px 32px">
-      <p style="margin:0;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.08em">TradeFlow AI</p>
+      <p style="margin:0;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.08em">JobBell</p>
       <h1 style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:600">New lead for ${business.name}</h1>
     </div>
     <div style="padding:24px 32px">
       <table style="width:100%;border-collapse:collapse">${tableRows}</table>
     </div>
-    <div style="padding:16px 32px;border-top:1px solid #f3f4f6;background:#f9fafb">
-      <p style="margin:0;color:#9ca3af;font-size:12px">Call them back as soon as possible to secure the job.</p>
+    <div style="padding:24px 32px;border-top:1px solid #f3f4f6">
+      <a href="tel:${lead.callerPhone}"
+         style="display:inline-block;background:#18181b;color:#fff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
+        📞 Call ${lead.callerName?.split(' ')[0] ?? 'Customer'} now
+      </a>
+      <p style="margin:12px 0 0;color:#9ca3af;font-size:12px">Call back as soon as possible to secure the job.</p>
     </div>
   </div>
 </body>

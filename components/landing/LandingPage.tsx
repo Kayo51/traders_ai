@@ -3,7 +3,8 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { SignUpButton } from '@clerk/nextjs'
+import { SignUpButton, useUser } from '@clerk/nextjs'
+import Link from 'next/link'
 import Phone, { PhoneState } from '@/components/phone/Phone'
 import ParticleFormation from '@/components/formations/ParticleFormation'
 
@@ -92,7 +93,7 @@ function BookingModal({ onClose }: { onClose: () => void }) {
           {step === 'form' ? (
             <>
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-400/80 mb-1">Book a demo</p>
-              <h2 className="text-xl font-bold text-white mb-1">See TradeFlow AI in action</h2>
+              <h2 className="text-xl font-bold text-white mb-1">See JobBell in action</h2>
               <p className="text-sm text-zinc-500 mb-6">We&apos;ll walk you through the whole system live — usually 20 minutes.</p>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -183,7 +184,7 @@ function BookingModal({ onClose }: { onClose: () => void }) {
 
 // ─── Hero ──────────────────────────────────────────────────────────────────────
 
-function HeroContent({ onBookDemo }: { onBookDemo: () => void }) {
+function HeroContent({ onBookDemo, isSignedIn }: { onBookDemo: () => void; isSignedIn: boolean }) {
   const { scrollY } = useScroll()
   const y = useTransform(scrollY, [0, 600], [0, 80])
   const op = useTransform(scrollY, [0, 400], [1, 0])
@@ -236,11 +237,17 @@ function HeroContent({ onBookDemo }: { onBookDemo: () => void }) {
         transition={{ duration: 0.6, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
         className="mt-8 flex flex-wrap gap-3"
       >
-        <SignUpButton mode="modal">
-          <button className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black hover:bg-zinc-100 transition-colors shadow-lg shadow-white/10">
-            Get Started — £99/mo
-          </button>
-        </SignUpButton>
+        {isSignedIn ? (
+          <Link href="/dashboard/leads" className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black hover:bg-zinc-100 transition-colors shadow-lg shadow-white/10">
+            Go to Dashboard
+          </Link>
+        ) : (
+          <SignUpButton mode="modal">
+            <button className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-black hover:bg-zinc-100 transition-colors shadow-lg shadow-white/10">
+              Get Started
+            </button>
+          </SignUpButton>
+        )}
         <button
           onClick={onBookDemo}
           className="rounded-full border border-white/10 bg-white/5 px-7 py-3 text-sm font-medium text-zinc-300 hover:border-white/20 hover:text-white transition-colors"
@@ -279,42 +286,69 @@ function WACard({ delay, title, lines, time }: {
 // ─── Pricing card ──────────────────────────────────────────────────────────────
 
 function PricingCard({
-  name, price, desc, features, highlighted, cta,
+  name, price, perDay, desc, features, lockedFeatures, highlighted, cta, roi,
 }: {
-  name: string; price: string; desc: string; features: string[]; highlighted?: boolean; cta: string
+  name: string
+  price: string
+  perDay?: string
+  desc: string
+  features: string[]
+  lockedFeatures?: string[]
+  highlighted?: boolean
+  cta: string
+  roi?: string
 }) {
   return (
-    <div className={`relative rounded-3xl border p-8 flex flex-col gap-6 transition-all ${
+    <div className={`relative rounded-3xl border flex flex-col gap-6 transition-all ${
       highlighted
-        ? 'border-blue-500/40 bg-gradient-to-b from-blue-500/10 to-violet-500/5'
-        : 'border-white/[0.06] bg-white/[0.02]'
+        ? 'border-violet-500/50 bg-gradient-to-b from-violet-500/10 via-blue-500/5 to-transparent p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)]'
+        : 'border-white/[0.06] bg-white/[0.02] p-8'
     }`}>
       {highlighted && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-4 py-1 text-xs font-semibold text-white shadow-lg shadow-blue-500/20">
-            Most popular
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+          <span className="rounded-full bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-violet-500/30 tracking-wide">
+            ⭐ BEST VALUE
           </span>
         </div>
       )}
       <div>
-        <p className="text-sm font-semibold text-zinc-400">{name}</p>
-        <p className="mt-2 text-4xl font-bold text-white">{price}<span className="text-base font-normal text-zinc-500">/mo</span></p>
-        <p className="mt-2 text-sm text-zinc-500">{desc}</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{name}</p>
+        <div className="mt-2 flex items-baseline gap-2">
+          <p className="text-5xl font-bold text-white">{price}</p>
+          <span className="text-base font-normal text-zinc-500">/mo</span>
+        </div>
+        {perDay && (
+          <p className="mt-1 text-xs text-zinc-600">{perDay}</p>
+        )}
+        <p className="mt-2 text-sm text-zinc-400">{desc}</p>
+        {roi && (
+          <div className="mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+            <p className="text-xs text-emerald-400 font-medium">💰 {roi}</p>
+          </div>
+        )}
       </div>
-      <ul className="flex flex-col gap-3 flex-1">
+      <ul className="flex flex-col gap-2.5 flex-1">
         {features.map((f, i) => (
-          <li key={i} className="flex items-center gap-3 text-sm text-zinc-300">
-            <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
+            <svg className="mt-0.5 w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+            {f}
+          </li>
+        ))}
+        {lockedFeatures?.map((f, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-600">
+            <svg className="mt-0.5 w-4 h-4 shrink-0 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
             {f}
           </li>
         ))}
       </ul>
       <SignUpButton mode="modal">
-        <button className={`w-full rounded-full py-3 text-sm font-semibold transition-all ${
+        <button className={`w-full rounded-full py-3.5 text-sm font-semibold transition-all ${
           highlighted
-            ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-[1.02]'
+            ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02]'
             : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
         }`}>
           {cta}
@@ -327,6 +361,7 @@ function PricingCard({
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const { isSignedIn } = useUser()
   const [phoneState, setPhoneState] = useState<PhoneState>('idle')
   const [bookingOpen, setBookingOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -392,7 +427,7 @@ export default function LandingPage() {
         <div className="relative mx-auto w-full max-w-6xl px-6 py-20">
           <div className="flex flex-col lg:flex-row items-center gap-16">
             <div className="flex-1">
-              <HeroContent onBookDemo={() => setBookingOpen(true)} />
+              <HeroContent onBookDemo={() => setBookingOpen(true)} isSignedIn={!!isSignedIn} />
             </div>
             <div className="flex justify-center lg:justify-end shrink-0">
               <Phone state={phoneState} className="drop-shadow-2xl" />
@@ -521,7 +556,7 @@ export default function LandingPage() {
                 <div className="absolute left-6 top-8 bottom-8 w-px bg-gradient-to-b from-blue-500/40 via-violet-500/30 to-transparent" />
                 <div className="flex flex-col gap-10">
                   {[
-                    { n: '01', title: 'Customer calls your business', desc: 'Every inbound call goes straight to your TradeFlow AI — no hold music, no voicemail, no missed rings.' },
+                    { n: '01', title: 'Customer calls your business', desc: 'Every inbound call goes straight to your JobBell — no hold music, no voicemail, no missed rings.' },
                     { n: '02', title: 'AI answers instantly', desc: 'Your AI receptionist greets the caller naturally and asks the right questions about their job.' },
                     { n: '03', title: 'Job details are saved', desc: 'Name, number, postcode, issue — all captured in seconds and saved to your dashboard.' },
                     { n: '04', title: 'Sent to you immediately', desc: 'You get an SMS alert the moment the call ends. The lead is yours.' },
@@ -572,7 +607,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col gap-3 max-w-md">
                 <WACard
                   delay={0.1}
-                  title="TradeFlow AI — New Lead"
+                  title="JobBell — New Lead"
                   time="09:43"
                   lines={[
                     'John Smith · +44 7700 900123',
@@ -582,7 +617,7 @@ export default function LandingPage() {
                 />
                 <WACard
                   delay={0.3}
-                  title="TradeFlow AI — Confirmed"
+                  title="JobBell — Confirmed"
                   time="09:44"
                   lines={[
                     'Calendar updated',
@@ -619,7 +654,7 @@ export default function LandingPage() {
               <GradientText>Books the job. Handles the rest.</GradientText>
             </h2>
             <p className="mt-4 max-w-xl text-zinc-400 leading-relaxed">
-              Most receptionists stop when the call ends. TradeFlow doesn&apos;t — it confirms, reminds, and re-engages your leads automatically, without you lifting a finger.
+              Most receptionists stop when the call ends. JobBell doesn&apos;t — it confirms, reminds, and re-engages your leads automatically, without you lifting a finger.
             </p>
           </motion.div>
 
@@ -634,7 +669,7 @@ export default function LandingPage() {
                   { when: 'The moment the call ends', title: 'You get the SMS alert', desc: 'Full lead details — name, number, postcode, job type, urgency — delivered by text before you\'ve even put down your tools.' },
                   { when: 'Instantly after', title: 'Caller gets a confirmation SMS', desc: 'Your customer receives their booking details automatically. Professionalises your business without any manual effort.' },
                   { when: '24 hours before the job', title: 'Reminder sent to the caller', desc: 'Cuts no-shows. Your customer gets a reminder so they\'re ready, and you don\'t waste a trip.' },
-                  { when: '48h with no response', title: 'Re-engagement triggered', desc: 'If a caller never confirmed their slot, TradeFlow follows up automatically — recovering leads that would otherwise go cold.' },
+                  { when: '48h with no response', title: 'Re-engagement triggered', desc: 'If a caller never confirmed their slot, JobBell follows up automatically — recovering leads that would otherwise go cold.' },
                   { when: '7 days of silence', title: 'Win-back message sent', desc: '"Still need a hand?" — sent automatically to reignite interest and recover jobs that slipped through the cracks.' },
                 ].map((step, i) => (
                   <motion.div
@@ -822,7 +857,21 @@ export default function LandingPage() {
             </h2>
           </motion.div>
 
-          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 max-w-3xl mx-auto">
+          {/* Receptionist comparison anchor */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="max-w-xl mx-auto mb-10 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-6 py-4 text-center"
+          >
+            <p className="text-sm text-zinc-400">
+              A part-time receptionist costs <span className="line-through text-zinc-600">£800+/month</span>
+              {' '}and still misses calls. JobBell answers <span className="text-white font-semibold">every single one</span> for £149.
+            </p>
+          </motion.div>
+
+          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 max-w-3xl mx-auto items-start">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -830,15 +879,22 @@ export default function LandingPage() {
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <PricingCard
-                name="Starter"
+                name="Essential"
                 price="£99"
-                desc="AI receptionist + SMS alerts + lead capture"
+                desc="For sole traders who want to stop missing calls"
                 features={[
                   'AI voice receptionist 24/7',
-                  'Instant SMS lead alerts',
+                  'Instant SMS & email lead alerts',
+                  'Tap-to-call button in every alert',
                   'Lead capture dashboard',
-                  'SMS & email alerts',
-                  'Up to 500 calls/month',
+                  '150 call minutes/month',
+                  '14-day free trial',
+                ]}
+                lockedFeatures={[
+                  'Quote chaser (auto follow-up)',
+                  'Google review automation',
+                  '"On My Way" notifications',
+                  'Appointment booking & reminders',
                 ]}
                 cta="Start Free Trial"
               />
@@ -847,20 +903,25 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
             >
               <PricingCard
-                name="Pro"
+                name="Professional"
                 price="£149"
-                desc="Everything in Starter, plus automation & AI booking"
+                perDay="£4.97/day — less than a takeaway coffee"
+                desc="For tradespeople serious about growing their business"
                 highlighted
+                roi="One recovered quote pays for 2 months"
                 features={[
-                  'Everything in Starter',
-                  'Google Calendar auto-booking',
-                  'Priority lead scoring',
-                  'Advanced AI call handling',
-                  'Follow-up automation',
-                  'Unlimited calls',
+                  'Everything in Essential',
+                  'Quote chaser — auto follow-up at day 3 & 7',
+                  'Google review automation after every job',
+                  '"On My Way" customer notifications',
+                  'Google Calendar appointment booking',
+                  '24h & 5h appointment reminders',
+                  '300 call minutes/month',
+                  'Custom receptionist name & voice',
+                  'Priority support',
                 ]}
                 cta="Start Free Trial — Best Value"
               />
@@ -868,7 +929,7 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-8 text-center text-xs text-zinc-600">
-            Most businesses choose Pro because it captures more jobs automatically. · Cancel anytime.
+            14-day free trial · No credit card required · Cancel anytime · No contracts
           </p>
         </div>
       </section>
@@ -897,15 +958,21 @@ export default function LandingPage() {
                 <GradientText>Start capturing every job.</GradientText>
               </h2>
               <p className="mt-5 text-zinc-400 leading-relaxed">
-                TradeFlow AI runs your reception 24/7 so you never lose work again.
+                JobBell runs your reception 24/7 so you never lose work again.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3 justify-center lg:justify-start">
-                <SignUpButton mode="modal">
-                  <button className="rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-black hover:bg-zinc-100 transition-all shadow-xl shadow-white/10 hover:shadow-white/20 hover:scale-[1.02]">
-                    Get Started — £99/mo Starter
-                  </button>
-                </SignUpButton>
+                {isSignedIn ? (
+                  <Link href="/dashboard/leads" className="rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-black hover:bg-zinc-100 transition-all shadow-xl shadow-white/10 hover:shadow-white/20 hover:scale-[1.02]">
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <SignUpButton mode="modal">
+                    <button className="rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-black hover:bg-zinc-100 transition-all shadow-xl shadow-white/10 hover:shadow-white/20 hover:scale-[1.02]">
+                      Sign up to see prices
+                    </button>
+                  </SignUpButton>
+                )}
                 <button
                   onClick={() => setBookingOpen(true)}
                   className="rounded-full border border-white/10 bg-white/5 px-8 py-3.5 text-sm font-medium text-zinc-300 hover:border-white/20 hover:text-white transition-colors"
@@ -924,8 +991,8 @@ export default function LandingPage() {
         {/* Footer */}
         <div className="relative border-t border-white/[0.05] py-8">
           <div className="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm font-semibold text-white">TradeFlow AI</p>
-            <p className="text-xs text-zinc-700">© 2026 TradeFlow AI. Built for UK trade businesses.</p>
+            <p className="text-sm font-semibold text-white">JobBell</p>
+            <p className="text-xs text-zinc-700">© 2026 JobBell. Built for UK trade businesses.</p>
           </div>
         </div>
       </section>

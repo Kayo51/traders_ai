@@ -6,40 +6,37 @@ import { selectPlan } from '../actions'
 
 type Plan = 'ESSENTIAL' | 'PROFESSIONAL'
 
-type Feature = { text: string; included: boolean }
+type Feature = { text: string; included: boolean; highlight?: boolean }
 
 const ESSENTIAL_FEATURES: Feature[] = [
-  { text: '150 AI call minutes / month', included: true },
-  { text: '1 AI Receptionist', included: true },
-  { text: '1 Business Number', included: true },
-  { text: 'SMS notifications', included: true },
-  { text: 'Email notifications', included: true },
-  { text: 'Basic dashboard & analytics', included: true },
-  { text: 'Email support', included: true },
-  { text: 'Receptionist customisation', included: false },
-  { text: 'Voice & accent selection', included: false },
-  { text: 'Custom greeting', included: false },
-  { text: 'Call recording', included: false },
+  { text: 'AI voice receptionist 24/7', included: true },
+  { text: 'Instant SMS & email lead alerts', included: true },
+  { text: 'Tap-to-call button in every alert', included: true },
+  { text: 'Lead capture dashboard', included: true },
+  { text: '150 call minutes / month', included: true },
+  { text: '14-day free trial', included: true },
+  { text: 'Quote chaser (auto follow-up)', included: false },
+  { text: 'Google review automation', included: false },
+  { text: '"On My Way" customer notifications', included: false },
+  { text: 'Appointment booking & reminders', included: false },
 ]
 
 const PROFESSIONAL_FEATURES: Feature[] = [
-  { text: '300 AI call minutes / month', included: true },
-  { text: '1 AI Business Number', included: true },
-  { text: 'Extra minutes at £0.20 / min', included: true },
-  { text: 'Custom receptionist name', included: true },
-  { text: 'Male or female receptionist', included: true },
-  { text: 'British, American or Australian accent', included: true },
-  { text: 'Custom greeting message', included: true },
-  { text: 'Opening hours configuration', included: true },
-  { text: 'Emergency call questions', included: true },
-  { text: 'Call recording', included: true },
-  { text: 'Advanced analytics dashboard', included: true },
+  { text: 'Everything in Essential', included: true },
+  { text: 'Quote chaser — auto follow-up at day 3 & 7', included: true, highlight: true },
+  { text: 'Google review automation after every job', included: true, highlight: true },
+  { text: '"On My Way" customer notifications', included: true, highlight: true },
+  { text: 'Google Calendar appointment booking', included: true },
+  { text: '24h & 5h appointment reminders', included: true },
+  { text: '300 call minutes/month', included: true },
+  { text: 'Custom receptionist name & voice', included: true },
+  { text: 'British, Irish, Scottish or American accent', included: true },
   { text: 'Priority support', included: true },
 ]
 
-function Check() {
+function Check({ violet }: { violet?: boolean }) {
   return (
-    <svg className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <svg className={`mt-0.5 h-4 w-4 shrink-0 ${violet ? 'text-violet-400' : 'text-blue-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   )
@@ -77,6 +74,14 @@ export default function PlanSelector() {
 
   return (
     <div className="w-full max-w-3xl">
+
+      {/* Anchor line */}
+      <p className="mb-8 text-center text-sm text-zinc-500">
+        A part-time receptionist costs{' '}
+        <span className="line-through text-zinc-600">£800+/month</span>
+        {' '}— and still misses calls.
+      </p>
+
       <div className="grid gap-5 sm:grid-cols-2 items-start">
 
         {/* ── Essential ── */}
@@ -84,24 +89,20 @@ export default function PlanSelector() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-          className="relative"
         >
-          <div className={`group relative w-full rounded-2xl border bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-6 text-left transition-all duration-200 ${
-            selected === 'ESSENTIAL'
-              ? 'border-blue-500/60'
-              : 'border-white/[0.08]'
+          <div className={`relative w-full rounded-2xl border bg-gradient-to-br from-blue-500/8 to-blue-600/4 p-6 text-left transition-all duration-200 ${
+            selected === 'ESSENTIAL' ? 'border-blue-500/60' : 'border-white/[0.08]'
           }`}>
-            {/* Header */}
             <div className="mb-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Ideal for sole traders</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">For sole traders</p>
               <h3 className="mt-1.5 text-2xl font-bold text-white">Essential</h3>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-4xl font-bold text-white">£99</span>
                 <span className="text-sm text-zinc-500">/month</span>
               </div>
+              <p className="mt-1 text-xs text-zinc-600">Never miss another call</p>
             </div>
 
-            {/* Features */}
             <ul className="mb-6 space-y-2">
               {ESSENTIAL_FEATURES.map(f => (
                 <li key={f.text} className="flex items-start gap-2.5">
@@ -113,7 +114,6 @@ export default function PlanSelector() {
               ))}
             </ul>
 
-            {/* CTAs */}
             <button
               onClick={() => handleSelect('ESSENTIAL', true)}
               disabled={isPending}
@@ -138,43 +138,40 @@ export default function PlanSelector() {
           transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
           className="relative"
         >
-          {/* Badge */}
-          <div className="absolute -top-3 left-1/2 z-10 -translate-x-1/2">
-            <span className="rounded-full bg-gradient-to-r from-violet-500 to-blue-500 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-white shadow-lg">
-              ⭐ Most Popular
+          <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+            <span className="rounded-full bg-gradient-to-r from-violet-500 to-blue-500 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-violet-500/30">
+              ⭐ Best Value
             </span>
           </div>
 
-          <div className={`group relative w-full rounded-2xl border bg-gradient-to-br from-violet-500/15 to-blue-500/10 p-8 text-left transition-all duration-200 ring-1 ring-violet-500/20 shadow-[0_0_40px_rgba(139,92,246,0.12)] ${
-            selected === 'PROFESSIONAL'
-              ? 'border-violet-500'
-              : 'border-violet-500/40'
+          <div className={`relative w-full rounded-2xl border bg-gradient-to-br from-violet-500/15 to-blue-500/8 p-8 text-left transition-all duration-200 ring-1 ring-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.15)] ${
+            selected === 'PROFESSIONAL' ? 'border-violet-500' : 'border-violet-500/40'
           }`}>
-            {/* Header */}
             <div className="mb-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
-                Ideal for growing plumbing businesses
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">For growing businesses</p>
               <h3 className="mt-1.5 text-2xl font-bold text-white">Professional</h3>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-4xl font-bold text-white">£149</span>
                 <span className="text-sm text-zinc-500">/month</span>
               </div>
+              <p className="mt-1 text-xs text-zinc-600">£4.97/day — less than a takeaway coffee</p>
+              {/* ROI callout */}
+              <div className="mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                <p className="text-xs text-emerald-400 font-medium">💰 One recovered quote pays for 2 months</p>
+              </div>
             </div>
 
-            {/* Features */}
             <ul className="mb-6 space-y-2">
               {PROFESSIONAL_FEATURES.map(f => (
                 <li key={f.text} className="flex items-start gap-2.5">
-                  <svg className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm text-zinc-300">{f.text}</span>
+                  <Check violet={f.highlight} />
+                  <span className={`text-sm ${f.highlight ? 'text-white font-medium' : 'text-zinc-300'}`}>
+                    {f.text}
+                  </span>
                 </li>
               ))}
             </ul>
 
-            {/* CTAs */}
             <button
               onClick={() => handleSelect('PROFESSIONAL', true)}
               disabled={isPending}
@@ -195,7 +192,7 @@ export default function PlanSelector() {
       </div>
 
       <p className="mt-8 text-center text-xs text-zinc-600">
-        No credit card required for trial · Cancel anytime · No contracts
+        14-day free trial · No credit card required · Cancel anytime · No contracts
       </p>
     </div>
   )

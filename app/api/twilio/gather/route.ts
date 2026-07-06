@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
 import db from '@/lib/db'
 import { chat, type Message } from '@/lib/ai/receptionist'
-import { generateAudio, resolveVoiceId } from '@/lib/tts'
+import { generateAudioCached, resolveVoiceId } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { sendLeadNotifications, sendCallerConfirmation } from '@/lib/notifications'
 import { gatherResponse, gatherResponseWithSay, hangupResponse, hangupResponseWithSay, errorResponse } from '@/lib/twiml'
@@ -15,7 +15,7 @@ const MAX_EMPTY_RETRIES = 3
 async function tts(text: string, voiceId: string): Promise<{ audioId: string; fallback: false } | { fallback: true; text: string }> {
   try {
     const audioId = randomUUID()
-    const buf = await generateAudio(text, voiceId)
+    const buf = await generateAudioCached(text, voiceId)
     storeAudio(audioId, buf)
     return { audioId, fallback: false }
   } catch (err) {

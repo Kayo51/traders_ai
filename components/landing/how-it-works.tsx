@@ -6,7 +6,7 @@ const steps = [
     number: '01',
     icon: '📞',
     title: 'Customer calls your number',
-    description: 'Your Twilio number forwards every inbound call directly to your TradeFlow AI receptionist — no hold music, no voicemail.',
+    description: 'Your Twilio number forwards every inbound call directly to your JobBell receptionist — no hold music, no voicemail.',
     accent: 'from-blue-500 to-blue-600',
     glow: 'bg-blue-500/20',
   },

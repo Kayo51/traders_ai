@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 
 const testimonials = [
   {
-    quote: "I was losing 4-5 calls a day just because I couldn't answer while under a sink. TradeFlow AI sorted that in 10 minutes. Got 3 new jobs the first week.",
+    quote: "I was losing 4-5 calls a day just because I couldn't answer while under a sink. JobBell sorted that in 10 minutes. Got 3 new jobs the first week.",
     name: 'Dave Hargreaves',
     role: 'Sole trader, Manchester',
     avatar: 'DH',

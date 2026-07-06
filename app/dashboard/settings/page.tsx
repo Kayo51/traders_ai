@@ -300,6 +300,32 @@ export default async function SettingsPage({
           </div>
         </section>
 
+        {/* === Google Reviews === */}
+        <section className="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-100">
+          <div className="px-5 py-4">
+            <h2 className="text-sm font-semibold text-zinc-900">Google Reviews</h2>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              When you mark a job complete, JobBell automatically texts the customer asking for a Google review.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1 px-5 py-4">
+            <label htmlFor="googlePlaceId" className="text-xs font-medium text-zinc-500">Google Place ID</label>
+            <input
+              id="googlePlaceId" name="googlePlaceId" type="text"
+              defaultValue={(settings as any)?.googlePlaceId ?? ''}
+              placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
+              className={INPUT}
+            />
+            <p className="text-xs text-zinc-400">
+              Find yours at{' '}
+              <a href="https://developers.google.com/maps/documentation/javascript/place-id" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-600">
+                developers.google.com/maps/documentation/javascript/place-id
+              </a>
+              {' '}— search for your business and copy the Place ID.
+            </p>
+          </div>
+        </section>
+
         <div className="flex justify-end">
           <button type="submit"
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"

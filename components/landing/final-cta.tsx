@@ -65,8 +65,8 @@ export default function FinalCTA() {
       {/* Footer bar */}
       <div className="relative mx-auto mt-24 max-w-6xl border-t border-white/[0.06] px-6 pt-8">
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm font-semibold text-white">TradeFlow AI</p>
-          <p className="text-xs text-zinc-600">© 2026 TradeFlow AI. Built for UK plumbers.</p>
+          <p className="text-sm font-semibold text-white">JobBell</p>
+          <p className="text-xs text-zinc-600">© 2026 JobBell. Built for UK plumbers.</p>
         </div>
       </div>
     </section>

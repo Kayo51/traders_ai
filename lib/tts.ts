@@ -1,3 +1,6 @@
+import crypto from 'crypto'
+import db from '@/lib/db'
+
 const DEFAULT_VOICE_ID = process.env.ELEVENLABS_VOICE_ID ?? 'Xb7hH8MSUJpSbSDYk0k2'
 
 export type VoiceConfig = {
@@ -9,13 +12,11 @@ export type VoiceConfig = {
 export function resolveVoiceId(config?: VoiceConfig | null): string {
   if (!config) return DEFAULT_VOICE_ID
 
-  // Named voice override: set ELEVENLABS_VOICE_EMMA, ELEVENLABS_VOICE_JAMES, etc.
   if (config.receptionistVoice) {
     const named = process.env[`ELEVENLABS_VOICE_${config.receptionistVoice.toUpperCase()}`]
     if (named) return named
   }
 
-  // Gender + accent combo: set ELEVENLABS_VOICE_FEMALE_BRITISH, ELEVENLABS_VOICE_MALE_AMERICAN, etc.
   if (config.receptionistGender && config.receptionistAccent) {
     const combo = process.env[`ELEVENLABS_VOICE_${config.receptionistGender.toUpperCase()}_${config.receptionistAccent.toUpperCase()}`]
     if (combo) return combo
@@ -24,7 +25,7 @@ export function resolveVoiceId(config?: VoiceConfig | null): string {
   return DEFAULT_VOICE_ID
 }
 
-function stripNonSpeech(str: string): string {
+export function stripNonSpeech(str: string): string {
   return str
     .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
     .replace(/[\u{2600}-\u{27BF}]/gu, '')
@@ -64,4 +65,23 @@ export async function generateAudio(text: string, voiceId?: string): Promise<Arr
 
   if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${await res.text()}`)
   return res.arrayBuffer()
+}
+
+// Checks the DB cache before calling ElevenLabs. Identical text+voice is only
+// generated once — subsequent calls return the stored bytes immediately.
+export async function generateAudioCached(text: string, voiceId: string): Promise<ArrayBuffer> {
+  const clean = stripNonSpeech(text)
+  const hash = crypto.createHash('sha256').update(`${clean}|${voiceId}`).digest('hex').slice(0, 32)
+
+  const cached = await db.ttsCache.findUnique({ where: { hash } })
+  if (cached) {
+    db.ttsCache.update({ where: { hash }, data: { hitCount: { increment: 1 } } }).catch(() => {})
+    const buf = cached.audio as Buffer
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+  }
+
+  const audio = await generateAudio(text, voiceId)
+  db.ttsCache.create({ data: { hash, audio: Buffer.from(audio) } })
+    .catch(err => console.error('[tts-cache] write failed:', err))
+  return audio
 }

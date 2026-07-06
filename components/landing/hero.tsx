@@ -99,7 +99,7 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400"
           >
-            TradeFlow AI answers every call, collects customer details, and sends
+            JobBell answers every call, collects customer details, and sends
             you an instant SMS — 24/7, automatically. Never lose a lead again.
           </motion.p>
 

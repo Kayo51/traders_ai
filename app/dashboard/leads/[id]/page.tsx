@@ -5,6 +5,7 @@ import db from '@/lib/db'
 import { NotesEditor } from './_components/NotesEditor'
 import { StatusSelector } from './_components/StatusSelector'
 import { DeleteLeadButton } from './_components/DeleteLeadButton'
+import { LeadActionButtons } from './_components/LeadActionButtons'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,7 @@ const URGENCY_STYLES: Record<string, string> = {
 const STATUS_STYLES: Record<string, string> = {
   NEW:       'bg-blue-50 text-blue-700 ring-blue-600/20',
   CONTACTED: 'bg-green-50 text-green-700 ring-green-600/20',
+  QUOTED:    'bg-amber-50 text-amber-700 ring-amber-600/20',
   BOOKED:    'bg-purple-50 text-purple-700 ring-purple-600/20',
   COMPLETED: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   LOST:      'bg-zinc-100 text-zinc-500 ring-zinc-500/20',
@@ -46,7 +48,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const lead = await db.lead.findUnique({
     where: { id, businessId: business.id },
-    include: { call: { include: { conversation: true } } },
+    include: { call: { include: { conversation: true } }, business: { include: { settings: true } } },
   })
   if (!lead) notFound()
 
@@ -83,7 +85,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      {/* Status + Notes (actions) */}
+      {/* Quick actions */}
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col gap-3">
+        <p className="text-xs font-semibold text-zinc-500">Quick actions</p>
+        <LeadActionButtons
+          leadId={lead.id}
+          status={lead.status}
+          onMyWaySentAt={lead.onMyWaySentAt}
+          reviewRequestSentAt={lead.reviewRequestSentAt}
+          quoteSentAt={lead.quoteSentAt}
+          hasGooglePlaceId={!!lead.business?.settings?.googlePlaceId}
+        />
+      </section>
+
+      {/* Status + Notes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <section className="rounded-xl border border-zinc-200 bg-white p-5 flex flex-col gap-3">
           <p className="text-xs font-semibold text-zinc-500">Update status</p>
@@ -210,7 +225,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex flex-col gap-1 max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <span className="text-[10px] font-medium text-zinc-400 px-1">
-                    {msg.role === 'assistant' ? (business.receptionistName ?? 'TradeFlow AI') : (lead.callerName ?? 'Caller')}
+                    {msg.role === 'assistant' ? (business.receptionistName ?? 'JobBell') : (lead.callerName ?? 'Caller')}
                   </span>
                   <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     msg.role === 'assistant'

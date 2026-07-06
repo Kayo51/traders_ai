@@ -3,11 +3,12 @@ import { useState, useTransition } from 'react'
 import { updateLeadStatus } from '../actions'
 import type { LeadStatus } from '@prisma/client'
 
-const STATUSES: LeadStatus[] = ['NEW', 'CONTACTED', 'BOOKED', 'COMPLETED', 'LOST']
+const STATUSES: LeadStatus[] = ['NEW', 'CONTACTED', 'QUOTED', 'BOOKED', 'COMPLETED', 'LOST']
 
 const STATUS_STYLES: Record<LeadStatus, string> = {
   NEW:       'bg-blue-50 text-blue-700 border-blue-200',
   CONTACTED: 'bg-green-50 text-green-700 border-green-200',
+  QUOTED:    'bg-amber-50 text-amber-700 border-amber-200',
   BOOKED:    'bg-purple-50 text-purple-700 border-purple-200',
   COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   LOST:      'bg-zinc-100 text-zinc-500 border-zinc-200',

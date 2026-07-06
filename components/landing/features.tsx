@@ -85,7 +85,7 @@ export default function Features() {
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-            TradeFlow AI is built specifically for UK trade businesses — no generic AI, no bloated CRM.
+            JobBell is built specifically for UK trade businesses — no generic AI, no bloated CRM.
           </p>
         </motion.div>
 

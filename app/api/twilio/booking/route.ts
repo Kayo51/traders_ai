@@ -13,7 +13,9 @@ import { markCallCompleted } from '@/lib/call-utils'
 const bookingUrl  = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/booking`
 const farewellUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/farewell`
 
+// Catches explicit declines and any expression of wanting to wait for the plumber to call back
 const DECLINE_RE = /\b(no|nope|none|neither|no thanks|not sure|can't|cant|don't|wont|won't|skip|not now|maybe later|actually no|forget it)\b/i
+const WAIT_FOR_CALL_RE = /\b(wait|waiting|call.*back|call me back|callback|call me|ring me|give.*ring|have.*call|have.*ring|plumber.*call|them.*call|they.*call|someone.*call|prefer.*call|rather.*call|rather.*wait|just.*call|let.*call|arrange.*later|speak.*direct|speak.*them|just.*wait|i.ll wait|i will wait)\b/i
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Caller wants plumber to call instead ──────────────────────────────────
-    if (DECLINE_RE.test(speechResult)) {
+    if (DECLINE_RE.test(speechResult) || WAIT_FOR_CALL_RE.test(speechResult)) {
       const text = "No worries at all! The plumber will call you to arrange a time. Is there anything else I can help with?"
       await generateAudio(text).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, farewellUrl)

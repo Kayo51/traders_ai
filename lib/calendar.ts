@@ -98,7 +98,7 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
   const now = new Date()
   const candidates: CalendarSlot[] = []
   const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
-  const labelFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', hour: 'numeric', minute: '2-digit', hour12: true })
+  const weekdayFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long' })
 
   for (let dayOffset = 0; dayOffset < settings.bookingWindowDays; dayOffset++) {
     const ref = new Date(now)
@@ -122,7 +122,8 @@ export async function getAvailableSlots(settings: SlotSettings, businessId: stri
       candidates.push({
         start: startUTC.toISOString(),
         end:   endUTC.toISOString(),
-        label: labelFmt.format(startUTC),
+        // "Thursday at 2 PM" — space-separated AM/PM avoids TTS slurring
+        label: `${weekdayFmt.format(startUTC)} at ${formatHour(startUTC)}`,
       })
     }
   }
@@ -203,8 +204,9 @@ function formatHour(date: Date): string {
   }).formatToParts(date)
   const hour   = parts.find(p => p.type === 'hour')?.value ?? ''
   const min    = parts.find(p => p.type === 'minute')?.value ?? '00'
-  const period = (parts.find(p => p.type === 'dayPeriod')?.value ?? '').toLowerCase().replace(/\s+/g, '')
-  return min === '00' ? `${hour}${period}` : `${hour}:${min}${period}`
+  const period = (parts.find(p => p.type === 'dayPeriod')?.value ?? '').toUpperCase().replace(/\s+/g, '')
+  // Space between number and AM/PM so TTS reads them as separate tokens, avoiding slurring
+  return min === '00' ? `${hour} ${period}` : `${hour}:${min} ${period}`
 }
 
 export function computeDayWindows(slots: CalendarSlot[]): DayWindow[] {

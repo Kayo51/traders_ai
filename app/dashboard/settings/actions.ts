@@ -47,6 +47,7 @@ export async function saveSettings(formData: FormData) {
         dataRetentionDays:   formData.get('dataRetentionDays') === 'never'
           ? null
           : parseInt(formData.get('dataRetentionDays') as string, 10) || 365,
+        googlePlaceId: (formData.get('googlePlaceId') as string)?.trim() || null,
       },
     }),
   ])
