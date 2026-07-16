@@ -1,12 +1,18 @@
 'use client'
 import React, { useRef, useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SignUpButton, useUser } from '@clerk/nextjs'
 import Link from 'next/link'
 import Phone, { PhoneState } from '@/components/phone/Phone'
-import ParticleFormation from '@/components/formations/ParticleFormation'
+
+// Three.js is ~600KB — load only when the section scrolls into view
+const ParticleFormation = dynamic(
+  () => import('@/components/formations/ParticleFormation'),
+  { ssr: false, loading: () => <div className="h-[500px]" /> }
+)
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger)
@@ -93,7 +99,7 @@ function BookingModal({ onClose }: { onClose: () => void }) {
           {step === 'form' ? (
             <>
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-400/80 mb-1">Book a demo</p>
-              <h2 className="text-xl font-bold text-white mb-1">See JobBell in action</h2>
+              <h2 className="text-xl font-bold text-white mb-1">See TradeSpeak in action</h2>
               <p className="text-sm text-zinc-500 mb-6">We&apos;ll walk you through the whole system live — usually 20 minutes.</p>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -285,52 +291,77 @@ function WACard({ delay, title, lines, time }: {
 
 // ─── Pricing card ──────────────────────────────────────────────────────────────
 
-function PricingCard({
-  name, price, perDay, desc, features, lockedFeatures, highlighted, cta, roi,
-}: {
+type PricingCardProps = {
+  tag?: string
+  tagStyle?: string
   name: string
-  price: string
-  perDay?: string
+  monthlyPrice: number
+  annualPrice: number
   desc: string
   features: string[]
+  highlightedFeatures?: string[]
   lockedFeatures?: string[]
-  highlighted?: boolean
-  cta: string
+  style: 'default' | 'pro' | 'business'
   roi?: string
-}) {
+  billing: 'MONTHLY' | 'ANNUAL'
+}
+
+function PricingCard({ tag, tagStyle, name, monthlyPrice, annualPrice, desc, features, highlightedFeatures, lockedFeatures, style, roi, billing }: PricingCardProps) {
+  const price = billing === 'ANNUAL' ? annualPrice : monthlyPrice
+  const saving = (monthlyPrice - annualPrice) * 12
+
+  const wrapperClass = style === 'pro'
+    ? 'border-violet-500/50 bg-gradient-to-b from-violet-500/10 via-blue-500/5 to-transparent shadow-[0_0_60px_rgba(139,92,246,0.15)]'
+    : style === 'business'
+    ? 'border-amber-500/20 bg-gradient-to-b from-amber-500/8 to-transparent'
+    : 'border-white/[0.06] bg-white/[0.02]'
+
+  const btnClass = style === 'pro'
+    ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02]'
+    : style === 'business'
+    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02]'
+    : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
+
+  const checkClass = style === 'pro' ? 'text-violet-400' : style === 'business' ? 'text-amber-400' : 'text-emerald-400'
+
   return (
-    <div className={`relative rounded-3xl border flex flex-col gap-6 transition-all ${
-      highlighted
-        ? 'border-violet-500/50 bg-gradient-to-b from-violet-500/10 via-blue-500/5 to-transparent p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)]'
-        : 'border-white/[0.06] bg-white/[0.02] p-8'
-    }`}>
-      {highlighted && (
+    <div className={`relative rounded-3xl border flex flex-col gap-6 p-8 transition-all ${wrapperClass}`}>
+      {tag && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-          <span className="rounded-full bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-violet-500/30 tracking-wide">
-            ⭐ BEST VALUE
+          <span className={`rounded-full px-4 py-1.5 text-xs font-bold text-white shadow-lg tracking-wide ${tagStyle}`}>
+            {tag}
           </span>
         </div>
       )}
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{name}</p>
         <div className="mt-2 flex items-baseline gap-2">
-          <p className="text-5xl font-bold text-white">{price}</p>
+          <p className="text-5xl font-bold text-white">£{price}</p>
           <span className="text-base font-normal text-zinc-500">/mo</span>
         </div>
-        {perDay && (
-          <p className="mt-1 text-xs text-zinc-600">{perDay}</p>
+        {billing === 'ANNUAL' && (
+          <p className="mt-1 text-xs text-emerald-400">£{price * 12}/yr · saves £{saving} vs monthly</p>
         )}
+        <p className="mt-1 text-xs text-zinc-600">£{(price / 30).toFixed(2)}/day</p>
         <p className="mt-2 text-sm text-zinc-400">{desc}</p>
         {roi && (
           <div className="mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
-            <p className="text-xs text-emerald-400 font-medium">💰 {roi}</p>
+            <p className="text-xs text-emerald-400 font-medium">{roi}</p>
           </div>
         )}
       </div>
       <ul className="flex flex-col gap-2.5 flex-1">
         {features.map((f, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
-            <svg className="mt-0.5 w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`mt-0.5 w-4 h-4 shrink-0 ${checkClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+            {f}
+          </li>
+        ))}
+        {highlightedFeatures?.map((f, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm font-medium text-white">
+            <svg className={`mt-0.5 w-4 h-4 shrink-0 ${checkClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
             {f}
@@ -346,12 +377,8 @@ function PricingCard({
         ))}
       </ul>
       <SignUpButton mode="modal">
-        <button className={`w-full rounded-full py-3.5 text-sm font-semibold transition-all ${
-          highlighted
-            ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02]'
-            : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
-        }`}>
-          {cta}
+        <button className={`w-full rounded-full py-3.5 text-sm font-semibold transition-all ${btnClass}`}>
+          Start Free Trial
         </button>
       </SignUpButton>
     </div>
@@ -363,6 +390,7 @@ function PricingCard({
 export default function LandingPage() {
   const { isSignedIn } = useUser()
   const [phoneState, setPhoneState] = useState<PhoneState>('idle')
+  const [billing, setBilling] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
   const [bookingOpen, setBookingOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const finalSectionRef = useRef<HTMLElement>(null)
@@ -556,7 +584,7 @@ export default function LandingPage() {
                 <div className="absolute left-6 top-8 bottom-8 w-px bg-gradient-to-b from-blue-500/40 via-violet-500/30 to-transparent" />
                 <div className="flex flex-col gap-10">
                   {[
-                    { n: '01', title: 'Customer calls your business', desc: 'Every inbound call goes straight to your JobBell — no hold music, no voicemail, no missed rings.' },
+                    { n: '01', title: 'Customer calls your business', desc: 'Every inbound call goes straight to your TradeSpeak — no hold music, no voicemail, no missed rings.' },
                     { n: '02', title: 'AI answers instantly', desc: 'Your AI receptionist greets the caller naturally and asks the right questions about their job.' },
                     { n: '03', title: 'Job details are saved', desc: 'Name, number, postcode, issue — all captured in seconds and saved to your dashboard.' },
                     { n: '04', title: 'Sent to you immediately', desc: 'You get an SMS alert the moment the call ends. The lead is yours.' },
@@ -607,7 +635,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col gap-3 max-w-md">
                 <WACard
                   delay={0.1}
-                  title="JobBell — New Lead"
+                  title="TradeSpeak — New Lead"
                   time="09:43"
                   lines={[
                     'John Smith · +44 7700 900123',
@@ -617,7 +645,7 @@ export default function LandingPage() {
                 />
                 <WACard
                   delay={0.3}
-                  title="JobBell — Confirmed"
+                  title="TradeSpeak — Confirmed"
                   time="09:44"
                   lines={[
                     'Calendar updated',
@@ -654,7 +682,7 @@ export default function LandingPage() {
               <GradientText>Books the job. Handles the rest.</GradientText>
             </h2>
             <p className="mt-4 max-w-xl text-zinc-400 leading-relaxed">
-              Most receptionists stop when the call ends. JobBell doesn&apos;t — it confirms, reminds, and re-engages your leads automatically, without you lifting a finger.
+              Most receptionists stop when the call ends. TradeSpeak doesn&apos;t — it confirms, reminds, and re-engages your leads automatically, without you lifting a finger.
             </p>
           </motion.div>
 
@@ -669,7 +697,7 @@ export default function LandingPage() {
                   { when: 'The moment the call ends', title: 'You get the SMS alert', desc: 'Full lead details — name, number, postcode, job type, urgency — delivered by text before you\'ve even put down your tools.' },
                   { when: 'Instantly after', title: 'Caller gets a confirmation SMS', desc: 'Your customer receives their booking details automatically. Professionalises your business without any manual effort.' },
                   { when: '24 hours before the job', title: 'Reminder sent to the caller', desc: 'Cuts no-shows. Your customer gets a reminder so they\'re ready, and you don\'t waste a trip.' },
-                  { when: '48h with no response', title: 'Re-engagement triggered', desc: 'If a caller never confirmed their slot, JobBell follows up automatically — recovering leads that would otherwise go cold.' },
+                  { when: '48h with no response', title: 'Re-engagement triggered', desc: 'If a caller never confirmed their slot, TradeSpeak follows up automatically — recovering leads that would otherwise go cold.' },
                   { when: '7 days of silence', title: 'Win-back message sent', desc: '"Still need a hand?" — sent automatically to reignite interest and recover jobs that slipped through the cracks.' },
                 ].map((step, i) => (
                   <motion.div
@@ -843,52 +871,72 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
         <Glow color="bg-violet-500" className="w-[600px] h-[500px] top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2" />
 
-        <div className="relative mx-auto max-w-5xl px-6">
+        <div className="relative mx-auto max-w-6xl px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-14"
+            className="text-center mb-10"
           >
             <SectionLabel>Pricing</SectionLabel>
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Simple pricing that<br /><GradientText>grows with your business</GradientText>
+              Stop losing jobs to<br /><GradientText>voicemail</GradientText>
             </h2>
-          </motion.div>
-
-          {/* Receptionist comparison anchor */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="max-w-xl mx-auto mb-10 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-6 py-4 text-center"
-          >
-            <p className="text-sm text-zinc-400">
-              A part-time receptionist costs <span className="line-through text-zinc-600">£800+/month</span>
-              {' '}and still misses calls. JobBell answers <span className="text-white font-semibold">every single one</span> for £149.
+            <p className="mt-4 text-zinc-400 text-sm max-w-lg mx-auto">
+              A missed call costs a plumber <span className="text-white font-semibold">£200–£500</span> in lost work.
+              A part-time receptionist costs <span className="line-through text-zinc-600">£800+/month</span> and still misses calls.
+              TradeSpeak answers every single one.
             </p>
           </motion.div>
 
-          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 max-w-3xl mx-auto items-start">
+          {/* Billing toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center justify-center gap-3 mb-10"
+          >
+            <button
+              onClick={() => setBilling('MONTHLY')}
+              className={`rounded-full px-5 py-2 text-sm font-medium transition-all ${
+                billing === 'MONTHLY' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBilling('ANNUAL')}
+              className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-all ${
+                billing === 'ANNUAL' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Annual
+              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase">2 months free</span>
+            </button>
+          </motion.div>
+
+          <div className="grid gap-6 lg:grid-cols-3 lg:gap-8 items-start">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
             >
               <PricingCard
-                name="Essential"
-                price="£99"
+                name="Starter"
+                monthlyPrice={99}
+                annualPrice={82}
                 desc="For sole traders who want to stop missing calls"
+                billing={billing}
+                style="default"
                 features={[
                   'AI voice receptionist 24/7',
                   'Instant SMS & email lead alerts',
                   'Tap-to-call button in every alert',
                   'Lead capture dashboard',
                   '150 call minutes/month',
-                  '14-day free trial',
                 ]}
                 lockedFeatures={[
                   'Quote chaser (auto follow-up)',
@@ -896,34 +944,64 @@ export default function LandingPage() {
                   '"On My Way" notifications',
                   'Appointment booking & reminders',
                 ]}
-                cta="Start Free Trial"
               />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.15 }}
+              transition={{ duration: 0.5, delay: 0.14 }}
             >
               <PricingCard
+                tag="⭐ Most Popular"
+                tagStyle="bg-gradient-to-r from-violet-500 to-blue-500 shadow-violet-500/30"
                 name="Professional"
-                price="£149"
-                perDay="£4.97/day — less than a takeaway coffee"
+                monthlyPrice={179}
+                annualPrice={149}
                 desc="For tradespeople serious about growing their business"
-                highlighted
-                roi="One recovered quote pays for 2 months"
+                billing={billing}
+                style="pro"
+                roi="One recovered quote pays for 3+ months"
                 features={[
-                  'Everything in Essential',
-                  'Quote chaser — auto follow-up at day 3 & 7',
-                  'Google review automation after every job',
-                  '"On My Way" customer notifications',
-                  'Google Calendar appointment booking',
-                  '24h & 5h appointment reminders',
+                  'Everything in Starter',
                   '300 call minutes/month',
                   'Custom receptionist name & voice',
+                  'Google Calendar appointment booking',
+                  '24h & 5h appointment reminders',
                   'Priority support',
                 ]}
-                cta="Start Free Trial — Best Value"
+                highlightedFeatures={[
+                  'Quote chaser — auto follow-up day 3 & 7',
+                  'Google review automation after every job',
+                  '"On My Way" customer notifications',
+                ]}
+              />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <PricingCard
+                tag="For busy businesses"
+                tagStyle="bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/30"
+                name="Business"
+                monthlyPrice={279}
+                annualPrice={232}
+                desc="For established trade businesses with high call volumes"
+                billing={billing}
+                style="business"
+                features={[
+                  'Everything in Professional',
+                  'Custom AI persona name & voice',
+                  'Priority phone support',
+                  'Dedicated onboarding call',
+                ]}
+                highlightedFeatures={[
+                  'Unlimited call minutes',
+                  'Multiple notification contacts',
+                ]}
               />
             </motion.div>
           </div>
@@ -958,7 +1036,7 @@ export default function LandingPage() {
                 <GradientText>Start capturing every job.</GradientText>
               </h2>
               <p className="mt-5 text-zinc-400 leading-relaxed">
-                JobBell runs your reception 24/7 so you never lose work again.
+                TradeSpeak runs your reception 24/7 so you never lose work again.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3 justify-center lg:justify-start">
@@ -991,8 +1069,8 @@ export default function LandingPage() {
         {/* Footer */}
         <div className="relative border-t border-white/[0.05] py-8">
           <div className="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm font-semibold text-white">JobBell</p>
-            <p className="text-xs text-zinc-700">© 2026 JobBell. Built for UK trade businesses.</p>
+            <p className="text-sm font-semibold text-white">TradeSpeak</p>
+            <p className="text-xs text-zinc-700">© 2026 TradeSpeak. Built for UK trade businesses.</p>
           </div>
         </div>
       </section>

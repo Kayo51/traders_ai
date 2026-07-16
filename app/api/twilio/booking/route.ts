@@ -4,7 +4,7 @@ import db from '@/lib/db'
 import { pickSlot } from '@/lib/ai/booking'
 import { createBooking, computeDayWindows, buildWindowOffer, buildWindowReprompt, buildWindowUnavailable, type CalendarSlot } from '@/lib/calendar'
 
-import { generateAudio } from '@/lib/tts'
+import { generateAudioCached, resolveVoiceId } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { isPresenceCheck } from '@/lib/phone-utils'
@@ -32,6 +32,12 @@ export async function POST(req: NextRequest) {
     })
     if (!conversation) return errorResponse()
 
+    const voiceId = resolveVoiceId({
+      receptionistVoice: conversation.business.receptionistVoice,
+      receptionistGender: conversation.business.receptionistGender,
+      receptionistAccent: conversation.business.receptionistAccent,
+    })
+
     const meta    = (conversation.collectedData as Record<string, unknown>) ?? {}
     const slots   = (meta.bookingSlots as CalendarSlot[]) ?? []
     const windows = computeDayWindows(slots)
@@ -41,7 +47,7 @@ export async function POST(req: NextRequest) {
     // ── Presence check ────────────────────────────────────────────────────────
     if (isPresenceCheck(speechResult)) {
       const text = `Hey, I'm still here! ${buildWindowReprompt(windows)}`
-      await generateAudio(text).then(buf => storeAudio(audioId, buf))
+      await generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, bookingUrl)
     }
 
@@ -50,12 +56,12 @@ export async function POST(req: NextRequest) {
       const retries = ((meta.bookingRetries as number) ?? 0) + 1
       if (retries > 3) {
         const text = "No problem — the plumber will give you a ring to arrange a time. Let me wrap things up."
-        await generateAudio(text).then(buf => storeAudio(audioId, buf))
+        await generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf))
         return gatherResponse(audioId, farewellUrl)
       }
       const text = retries === 1 ? buildWindowOffer(windows) : buildWindowReprompt(windows)
       await Promise.all([
-        generateAudio(text).then(buf => storeAudio(audioId, buf)),
+        generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),
       ])
       return gatherResponse(audioId, bookingUrl)
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
     // ── Caller wants plumber to call instead ──────────────────────────────────
     if (DECLINE_RE.test(speechResult) || WAIT_FOR_CALL_RE.test(speechResult)) {
       const text = "No worries at all! The plumber will call you to arrange a time. Is there anything else I can help with?"
-      await generateAudio(text).then(buf => storeAudio(audioId, buf))
+      await generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, farewellUrl)
     }
 
@@ -78,7 +84,7 @@ export async function POST(req: NextRequest) {
         ? "That's no problem — the plumber will give you a call to arrange a time. Is there anything else I can help with?"
         : buildWindowUnavailable(windows)
       await Promise.all([
-        generateAudio(text).then(buf => storeAudio(audioId, buf)),
+        generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),
       ])
       return retries > 2 ? gatherResponse(audioId, farewellUrl) : gatherResponse(audioId, bookingUrl)
@@ -88,12 +94,12 @@ export async function POST(req: NextRequest) {
       const retries = ((meta.bookingRetries as number) ?? 0) + 1
       if (retries > 3) {
         const text = "That's no problem — the plumber will give you a call to arrange a time. Is there anything else I can help with?"
-        await generateAudio(text).then(buf => storeAudio(audioId, buf))
+        await generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf))
         return gatherResponse(audioId, farewellUrl)
       }
       const text = buildWindowReprompt(windows)
       await Promise.all([
-        generateAudio(text).then(buf => storeAudio(audioId, buf)),
+        generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf)),
         db.conversation.update({ where: { id: conversation.id }, data: { collectedData: { ...meta, bookingRetries: retries } } }),
       ])
       return gatherResponse(audioId, bookingUrl)
@@ -125,12 +131,12 @@ export async function POST(req: NextRequest) {
       }
 
       const text = `Perfect! You're booked in for ${chosenSlot.label}. The plumber will also give you a call as soon as possible to confirm. Is there anything else I can help you with before I let you go?`
-      await generateAudio(text).then(buf => storeAudio(audioId, buf))
+      await generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, farewellUrl)
     } catch (err) {
       console.error('[booking] calendar error:', err)
       const text = "I'm sorry, there was a problem securing that slot. The plumber will contact you directly to arrange a time."
-      await generateAudio(text).then(buf => storeAudio(audioId, buf))
+      await generateAudioCached(text, voiceId).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, farewellUrl)
     }
   } catch (err) {

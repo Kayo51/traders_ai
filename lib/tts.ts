@@ -69,15 +69,21 @@ export async function generateAudio(text: string, voiceId?: string): Promise<Arr
 
 // Checks the DB cache before calling ElevenLabs. Identical text+voice is only
 // generated once — subsequent calls return the stored bytes immediately.
+// Cache is best-effort: any DB error falls back to a direct ElevenLabs call
+// so a cache failure never kills a live call.
 export async function generateAudioCached(text: string, voiceId: string): Promise<ArrayBuffer> {
   const clean = stripNonSpeech(text)
   const hash = crypto.createHash('sha256').update(`${clean}|${voiceId}`).digest('hex').slice(0, 32)
 
-  const cached = await db.ttsCache.findUnique({ where: { hash } })
-  if (cached) {
-    db.ttsCache.update({ where: { hash }, data: { hitCount: { increment: 1 } } }).catch(() => {})
-    const buf = cached.audio as Buffer
-    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+  try {
+    const cached = await db.ttsCache.findUnique({ where: { hash } })
+    if (cached) {
+      db.ttsCache.update({ where: { hash }, data: { hitCount: { increment: 1 } } }).catch(() => {})
+      const buf = cached.audio as Buffer
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+    }
+  } catch (err) {
+    console.warn('[tts-cache] cache read failed, falling back to ElevenLabs:', err)
   }
 
   const audio = await generateAudio(text, voiceId)

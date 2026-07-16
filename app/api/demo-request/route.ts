@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         html: `
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#0d0d0d;color:#e4e4e7;border-radius:12px">
             <h2 style="margin:0 0 4px;color:#fff;font-size:20px">New demo request</h2>
-            <p style="margin:0 0 24px;color:#71717a;font-size:14px">JobBell landing page</p>
+            <p style="margin:0 0 24px;color:#71717a;font-size:14px">TradeSpeak landing page</p>
             <table style="width:100%;border-collapse:collapse">
               <tr><td style="padding:10px 0;border-bottom:1px solid #27272a;color:#71717a;font-size:13px;width:100px">Name</td><td style="padding:10px 0;border-bottom:1px solid #27272a;color:#fff;font-size:14px;font-weight:600">${esc(name)}</td></tr>
               <tr><td style="padding:10px 0;border-bottom:1px solid #27272a;color:#71717a;font-size:13px">Email</td><td style="padding:10px 0;border-bottom:1px solid #27272a;color:#60a5fa;font-size:14px"><a href="mailto:${esc(email)}" style="color:#60a5fa;text-decoration:none">${esc(email)}</a></td></tr>
@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
         html: `
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#0d0d0d;color:#e4e4e7;border-radius:12px">
             <h2 style="margin:0 0 4px;color:#fff;font-size:20px">Thanks for reaching out, ${esc(name.split(' ')[0])}.</h2>
-            <p style="margin:0 0 24px;color:#71717a;font-size:14px">JobBell</p>
+            <p style="margin:0 0 24px;color:#71717a;font-size:14px">TradeSpeak</p>
             <p style="color:#a1a1aa;font-size:15px;line-height:1.7;margin:0 0 16px">
-              We've received your demo request and will be in touch very shortly to walk you through how JobBell can work for your ${esc(trade.toLowerCase())} business.
+              We've received your demo request and will be in touch very shortly to walk you through how TradeSpeak can work for your ${esc(trade.toLowerCase())} business.
             </p>
             <div style="margin:24px 0;padding:20px;background:#18181b;border-radius:8px;border:1px solid #27272a">
               <p style="margin:0 0 6px;color:#71717a;font-size:12px;text-transform:uppercase;letter-spacing:.06em">Your details</p>

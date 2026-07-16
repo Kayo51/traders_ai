@@ -1,4 +1,3 @@
-'use client'
 import Navbar from '@/components/landing/navbar'
 import LandingPage from '@/components/landing/LandingPage'
 

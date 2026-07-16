@@ -256,7 +256,7 @@ export default function SetupForm({ plan, defaults }: Props) {
             <div className="border-t border-zinc-800 bg-violet-500/5 px-5 py-4">
               <p className="text-xs text-zinc-400">
                 Unlock full customisation with{' '}
-                <span className="font-semibold text-violet-300">Professional — £149/month</span>.
+                <span className="font-semibold text-violet-300">Professional — £179/month</span>.
               </p>
               <Link
                 href="/onboarding/plan"

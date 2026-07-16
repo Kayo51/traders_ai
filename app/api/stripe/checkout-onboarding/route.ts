@@ -9,8 +9,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.redirect(new URL('/sign-in', req.url), 303)
     }
 
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const billingPeriod = cookieStore.get('billingPeriod')?.value ?? 'MONTHLY'
+
     const planKey = business.subscriptionPlan as string
-    const priceId = PLAN_PRICES[planKey]
+    const priceKey = billingPeriod === 'ANNUAL' ? `${planKey}_ANNUAL` : planKey
+    const priceId = PLAN_PRICES[priceKey] ?? PLAN_PRICES[planKey]
     if (!priceId) {
       return NextResponse.redirect(new URL('/onboarding/plan', req.url), 303)
     }

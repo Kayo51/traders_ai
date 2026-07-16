@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 import db from '@/lib/db'
 import { answerQuestion, buildQASystem, type QAResult } from '@/lib/ai/qa'
 import type { Message } from '@/lib/ai/receptionist'
-import { generateAudio } from '@/lib/tts'
+import { generateAudioCached, resolveVoiceId } from '@/lib/tts'
 import { storeAudio } from '@/lib/audio-cache'
 import { gatherResponse, hangupResponse, errorResponse } from '@/lib/twiml'
 import { isPresenceCheck } from '@/lib/phone-utils'
@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
 
     if (!conversation) return errorResponse()
 
+    const voiceId = resolveVoiceId({
+      receptionistVoice: conversation.business.receptionistVoice,
+      receptionistGender: conversation.business.receptionistGender,
+      receptionistAccent: conversation.business.receptionistAccent,
+    })
+
     const lead = conversation.call?.lead
     const systemPrompt = buildQASystem(
       conversation.business.name,
@@ -44,7 +50,7 @@ export async function POST(req: NextRequest) {
       if (qaRetries >= 3) {
         const audioId = randomUUID()
         await Promise.all([
-          generateAudio("I'm sorry, I can't hear you clearly. The plumber will call you back shortly. Goodbye!").then(buf => storeAudio(audioId, buf)),
+          generateAudioCached("I'm sorry, I can't hear you clearly. The plumber will call you back shortly. Goodbye!", voiceId).then(buf => storeAudio(audioId, buf)),
           markCallCompleted(callSid),
         ])
         return hangupResponse(audioId)
@@ -56,7 +62,7 @@ export async function POST(req: NextRequest) {
       const lastReply = qaMessages.filter(m => m.role === 'assistant').at(-1)
       const retry = lastReply?.content ?? "Sorry, I didn't catch that. What would you like to know?"
       const audioId = randomUUID()
-      await generateAudio(retry).then(buf => storeAudio(audioId, buf))
+      await generateAudioCached(retry, voiceId).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/qa`)
     }
 
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
       const lastReply = qaMessages.filter(m => m.role === 'assistant').at(-1)
       const reply = `Hey, I'm still here! Sorry if there was a pause. ${lastReply?.content ?? 'What would you like to know?'}`
       const audioId = randomUUID()
-      await generateAudio(reply).then(buf => storeAudio(audioId, buf))
+      await generateAudioCached(reply, voiceId).then(buf => storeAudio(audioId, buf))
       return gatherResponse(audioId, `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/qa`)
     }
 
@@ -84,7 +90,7 @@ export async function POST(req: NextRequest) {
     // Save QA history and pre-generate audio in parallel
     const audioId = randomUUID()
     await Promise.all([
-      generateAudio(result.reply).then(buf => storeAudio(audioId, buf)),
+      generateAudioCached(result.reply, voiceId).then(buf => storeAudio(audioId, buf)),
       db.conversation.update({
         where: { id: conversation.id },
         data: {

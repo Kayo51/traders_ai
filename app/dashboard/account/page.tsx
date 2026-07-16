@@ -33,7 +33,7 @@ const PLAN_META: Record<string, {
   },
   PROFESSIONAL: {
     label: 'Professional',
-    price: '£149 / month',
+    price: '£179 / month',
     color: 'text-violet-700 bg-violet-50 ring-violet-200',
     features: [
       '300 AI call minutes / month',
@@ -76,15 +76,15 @@ const UPGRADE_OPTIONS = [
   {
     key: 'PROFESSIONAL',
     label: 'Professional',
-    price: '£149',
+    price: '£179',
     period: '/mo',
     highlight: true,
     cta: 'Upgrade to Professional',
   },
   {
     key: 'ENTERPRISE',
-    label: 'Enterprise',
-    price: 'Custom',
+    label: 'Business',
+    price: '£279',
     period: '',
     highlight: false,
     cta: 'Contact sales',
@@ -214,7 +214,7 @@ export default async function AccountPage({
               </form>
             ) : (
               <a
-                href="mailto:hello@jobbellai.co.uk?subject=Subscription%20change%20request"
+                href="mailto:hello@tradespeakai.co.uk?subject=Subscription%20change%20request"
                 className="rounded-lg border border-zinc-200 px-4 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
               >
                 Change plan
@@ -231,7 +231,7 @@ export default async function AccountPage({
               </form>
             ) : (
               <a
-                href="mailto:hello@jobbellai.co.uk?subject=Cancel%20subscription"
+                href="mailto:hello@tradespeakai.co.uk?subject=Cancel%20subscription"
                 className="rounded-lg border border-red-200 px-4 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
               >
                 Cancel subscription
@@ -295,7 +295,7 @@ export default async function AccountPage({
                   </form>
                 ) : (
                   <a
-                    href={`mailto:hello@jobbellai.co.uk?subject=Upgrade%20to%20${plan.label}`}
+                    href={`mailto:hello@tradespeakai.co.uk?subject=Upgrade%20to%20${plan.label}`}
                     className={`block rounded-lg px-4 py-2 text-center text-xs font-semibold transition-colors ${
                       plan.highlight
                         ? 'bg-violet-600 text-white hover:bg-violet-700'
@@ -310,7 +310,7 @@ export default async function AccountPage({
           </div>
           <p className="mt-3 text-xs text-zinc-400">
             Need Enterprise or a custom plan?{' '}
-            <a href="mailto:hello@jobbellai.co.uk?subject=Enterprise%20plan%20enquiry" className="underline hover:text-zinc-700">
+            <a href="mailto:hello@tradespeakai.co.uk?subject=Enterprise%20plan%20enquiry" className="underline hover:text-zinc-700">
               Contact us
             </a>
           </p>

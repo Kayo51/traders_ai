@@ -6,8 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 export type PhoneState = 'idle' | 'ringing' | 'activeCall' | 'leadCapture' | 'dashboard' | 'success'
 
 const smsMsgs = [
-  { from: 'JobBell', time: '09:43', lines: ['🔔 New lead captured', 'John Smith · +44 7700 900123', '📍 SW1A 1AA · Boiler repair', '⚡ URGENT'], delay: 0 },
-  { from: 'JobBell', time: '09:44', lines: ['All job details saved ✓', 'Calendar slot offered', 'Follow-up scheduled'], delay: 1.2 },
+  { from: 'TradeSpeak', time: '09:43', lines: ['🔔 New lead captured', 'John Smith · +44 7700 900123', '📍 SW1A 1AA · Boiler repair', '⚡ URGENT'], delay: 0 },
+  { from: 'TradeSpeak', time: '09:44', lines: ['All job details saved ✓', 'Calendar slot offered', 'Follow-up scheduled'], delay: 1.2 },
 ]
 
 function IdleScreen() {
@@ -23,7 +23,7 @@ function IdleScreen() {
   }, [])
   return (
     <div className="flex flex-col items-center justify-center h-full gap-3 select-none">
-      <p className="text-zinc-600 text-[10px] font-medium tracking-widest uppercase">JobBell</p>
+      <p className="text-zinc-600 text-[10px] font-medium tracking-widest uppercase">TradeSpeak</p>
       <p className="text-white text-4xl font-light tabular-nums">{time || '09:41'}</p>
       <p className="text-zinc-600 text-xs">Receptionist active</p>
       <div className="mt-4 flex gap-1.5">
@@ -148,7 +148,7 @@ function LeadCaptureScreen() {
           </svg>
         </div>
         <div>
-          <p className="text-white text-[10px] font-semibold">JobBell</p>
+          <p className="text-white text-[10px] font-semibold">TradeSpeak</p>
           <p className="text-blue-400 text-[8px]">SMS alert</p>
         </div>
       </div>

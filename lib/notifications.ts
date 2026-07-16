@@ -81,7 +81,7 @@ async function sendEmail({ lead, business, settings }: NotifyPayload) {
   if (!apiKey) return
 
   const to = settings.notifyEmail ?? business.ownerEmail
-  const from = process.env.RESEND_FROM_EMAIL ?? 'alerts@jobbellai.co.uk'
+  const from = process.env.RESEND_FROM_EMAIL ?? 'alerts@tradespeakai.co.uk'
 
   const resend = new Resend(apiKey)
   await resend.emails.send({
@@ -117,7 +117,7 @@ function emailHtml(lead: Lead, business: Business): string {
 <body style="margin:0;padding:0;background:#f9fafb;font-family:sans-serif">
   <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
     <div style="background:#18181b;padding:24px 32px">
-      <p style="margin:0;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.08em">JobBell</p>
+      <p style="margin:0;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.08em">TradeSpeak</p>
       <h1 style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:600">New lead for ${business.name}</h1>
     </div>
     <div style="padding:24px 32px">

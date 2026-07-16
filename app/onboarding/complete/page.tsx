@@ -9,10 +9,9 @@ import CompleteAnimation from './complete-animation'
 export const dynamic = 'force-dynamic'
 
 const PLAN_LABELS: Record<string, string> = {
-  ESSENTIAL: 'Essential — £99/month',
-  PROFESSIONAL: 'Professional — £149/month',
-  STARTER: 'Starter — £99/month',
-  ENTERPRISE: 'Enterprise — £199/month',
+  ESSENTIAL:    'Starter — £99/month',
+  PROFESSIONAL: 'Professional — £179/month',
+  ENTERPRISE:   'Business — £279/month',
 }
 
 const VOICE_LABELS: Record<string, string> = {

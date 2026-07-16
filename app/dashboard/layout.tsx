@@ -35,7 +35,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <>
       <div className="flex h-14 items-center px-5 border-b border-zinc-800">
         <a href="/" className="text-sm font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
-          JobBell
+          TradeSpeak
         </a>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto">

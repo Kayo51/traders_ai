@@ -14,7 +14,7 @@ async function main() {
     create: {
       name: 'Dev Plumbing Co',
       slug: 'dev-plumbing',
-      ownerEmail: 'dev@jobbellai.co.uk',
+      ownerEmail: 'dev@tradespeakai.co.uk',
       ownerPhone: '07700900000',
     },
   })

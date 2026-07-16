@@ -305,7 +305,7 @@ export default async function SettingsPage({
           <div className="px-5 py-4">
             <h2 className="text-sm font-semibold text-zinc-900">Google Reviews</h2>
             <p className="mt-0.5 text-xs text-zinc-500">
-              When you mark a job complete, JobBell automatically texts the customer asking for a Google review.
+              When you mark a job complete, TradeSpeak automatically texts the customer asking for a Google review.
             </p>
           </div>
           <div className="flex flex-col gap-1 px-5 py-4">

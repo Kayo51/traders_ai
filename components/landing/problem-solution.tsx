@@ -68,7 +68,7 @@ export default function ProblemSolution() {
             viewport={{ once: true, margin: '-80px' }}
             className="rounded-3xl border border-red-500/10 bg-red-500/5 p-8"
           >
-            <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-red-400">Without JobBell</p>
+            <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-red-400">Without TradeSpeak</p>
             <div className="flex flex-col gap-4">
               {problems.map((p, i) => (
                 <motion.div key={i} variants={itemVariants} className="flex items-center gap-4">
@@ -89,7 +89,7 @@ export default function ProblemSolution() {
             viewport={{ once: true, margin: '-80px' }}
             className="rounded-3xl border border-blue-500/10 bg-blue-500/5 p-8"
           >
-            <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-blue-400">With JobBell</p>
+            <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-blue-400">With TradeSpeak</p>
             <div className="flex flex-col gap-4">
               {solutions.map((s, i) => (
                 <motion.div key={i} variants={itemVariantsRight} className="flex items-center gap-4">

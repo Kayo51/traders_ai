@@ -225,7 +225,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex flex-col gap-1 max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <span className="text-[10px] font-medium text-zinc-400 px-1">
-                    {msg.role === 'assistant' ? (business.receptionistName ?? 'JobBell') : (lead.callerName ?? 'Caller')}
+                    {msg.role === 'assistant' ? (business.receptionistName ?? 'TradeSpeak') : (lead.callerName ?? 'Caller')}
                   </span>
                   <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     msg.role === 'assistant'

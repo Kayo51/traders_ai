@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f9fafb;font-family:sans-serif">` +
       `<div style="max-width:480px;margin:40px auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">` +
       `<div style="background:#18181b;padding:24px 32px">` +
-      `<p style="margin:0;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.08em">JobBell</p>` +
+      `<p style="margin:0;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.08em">TradeSpeak</p>` +
       `<h1 style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:600">Appointment in ${label}</h1>` +
       `</div>` +
       `<div style="padding:24px 32px">` +
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       `<a href="tel:${lead.callerPhone}" style="display:inline-block;background:#18181b;color:#fff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none">` +
       `📞 Call ${firstName} now` +
       `</a>` +
-      `<p style="margin:12px 0 0;color:#9ca3af;font-size:12px">Sent by JobBell — ${business.name}</p>` +
+      `<p style="margin:12px 0 0;color:#9ca3af;font-size:12px">Sent by TradeSpeak — ${business.name}</p>` +
       `</div>` +
       `</div></body></html>`
 

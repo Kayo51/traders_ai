@@ -14,11 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JobBell — AI Voice Receptionist for UK Trade Businesses",
-  description: "Never miss a customer call again. JobBell answers every call instantly, captures job details, and sends you an instant SMS alert. Built for UK plumbers, electricians and contractors.",
+  title: "TradeSpeak — AI Voice Receptionist for UK Trade Businesses",
+  description: "Never miss a customer call again. TradeSpeak answers every call instantly, captures job details, and sends you an instant SMS alert. Built for UK plumbers, electricians and contractors.",
   keywords: "AI receptionist, UK plumbers, missed calls, trade business, voice AI, lead capture",
   openGraph: {
-    title: "JobBell — Never Miss a Customer Again",
+    title: "TradeSpeak — Never Miss a Customer Again",
     description: "AI voice receptionist that answers every call and captures job details for UK trade businesses.",
     type: "website",
   },

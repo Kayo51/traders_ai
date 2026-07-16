@@ -6,16 +6,22 @@ export const dynamic = 'force-dynamic'
 
 const PLAN_DETAILS: Record<string, { label: string; price: string; period: string; color: string }> = {
   ESSENTIAL: {
-    label: 'Essential',
+    label: 'Starter',
     price: '£99',
     period: '/month',
     color: 'from-blue-500/15 to-blue-600/5 border-blue-500/30',
   },
   PROFESSIONAL: {
     label: 'Professional',
-    price: '£149',
+    price: '£179',
     period: '/month',
     color: 'from-violet-500/15 to-blue-500/10 border-violet-500/40',
+  },
+  ENTERPRISE: {
+    label: 'Business',
+    price: '£279',
+    period: '/month',
+    color: 'from-amber-500/15 to-orange-500/5 border-amber-500/30',
   },
 }
 

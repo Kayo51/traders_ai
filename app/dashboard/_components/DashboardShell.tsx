@@ -36,7 +36,7 @@ export function DashboardShell({ sidebar, children }: { sidebar: React.ReactNode
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-zinc-900">JobBell</span>
+          <span className="text-sm font-semibold text-zinc-900">TradeSpeak</span>
         </div>
         {children}
       </main>

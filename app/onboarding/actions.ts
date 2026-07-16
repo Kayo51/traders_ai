@@ -4,7 +4,15 @@ import { redirect } from 'next/navigation'
 import db from '@/lib/db'
 import { getCurrentBusiness, ensureUserAndBusiness, generateSimulatedNumber } from '@/lib/onboarding'
 
-export async function selectPlan(plan: 'ESSENTIAL' | 'PROFESSIONAL', trial = false) {
+export async function selectPlan(
+  plan: 'ESSENTIAL' | 'PROFESSIONAL' | 'ENTERPRISE',
+  trial = false,
+  billingPeriod: 'MONTHLY' | 'ANNUAL' = 'MONTHLY',
+) {
+  const { cookies } = await import('next/headers')
+  const cookieStore = await cookies()
+  cookieStore.set('billingPeriod', billingPeriod, { path: '/', httpOnly: true, sameSite: 'lax' })
+
   const trialEndsAt = trial
     ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
     : undefined

@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic'
 
+import { Suspense } from 'react'
 import { getCurrentBusiness } from '@/lib/onboarding'
 import db from '@/lib/db'
 import { LeadsTable } from './_components/leads-table'
 import { KPICards } from '@/components/dashboard/KPICards'
-import { TrendChart } from '@/components/dashboard/TrendChart'
-import { get30DayTrend } from '@/lib/trendStats'
+import { TrendChartAsync } from '@/components/dashboard/TrendChartAsync'
 import { MarkLeadsViewed } from './_components/MarkLeadsViewed'
 import { VALID_PERIODS, type Period } from '@/lib/dashboardStats'
 import type { Prisma, LeadStatus } from '@prisma/client'
@@ -13,11 +13,32 @@ import type { Prisma, LeadStatus } from '@prisma/client'
 const VALID_SORT_FIELDS = ['urgency','callerName','description','postcode','callerPhone','status','createdAt'] as const
 type SortField = typeof VALID_SORT_FIELDS[number]
 
+const LEADS_PAGE_SIZE = 100
+
 function buildOrderBy(sort: string, dir: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput[] {
   if (!VALID_SORT_FIELDS.includes(sort as SortField)) {
     return [{ urgency: 'desc' }, { createdAt: 'desc' }]
   }
   return [{ [sort]: dir }]
+}
+
+function KPICardsSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span className="h-3 w-20 rounded bg-zinc-100 animate-pulse" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-28 rounded-xl border border-zinc-200 bg-white animate-pulse" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TrendSkeleton() {
+  return <div className="h-48 rounded-xl border border-zinc-200 bg-white animate-pulse" />
 }
 
 export default async function LeadsPage({
@@ -32,22 +53,20 @@ export default async function LeadsPage({
   const period: Period = VALID_PERIODS.has(rawPeriod as Period) ? (rawPeriod as Period) : 'day'
 
   const rawStatus = params.status?.toUpperCase()
-  const validStatuses: LeadStatus[] = ['NEW','CONTACTED','BOOKED','COMPLETED','LOST']
+  const validStatuses: LeadStatus[] = ['NEW', 'CONTACTED', 'QUOTED', 'BOOKED', 'COMPLETED', 'LOST']
   const statusFilter = rawStatus && validStatuses.includes(rawStatus as LeadStatus) ? rawStatus as LeadStatus : undefined
 
   const sortField = params.sort ?? ''
   const sortDir: 'asc' | 'desc' = params.dir === 'asc' ? 'asc' : 'desc'
   const orderBy = sortField ? buildOrderBy(sortField, sortDir) : [{ urgency: 'desc' as const }, { createdAt: 'desc' as const }]
 
-  const [leads, trend] = await Promise.all([
-    business
-      ? db.lead.findMany({
-          where: { businessId: business.id, ...(statusFilter ? { status: statusFilter } : {}) },
-          orderBy,
-        })
-      : [],
-    business ? get30DayTrend(business.id) : [],
-  ])
+  const leads = business
+    ? await db.lead.findMany({
+        where: { businessId: business.id, ...(statusFilter ? { status: statusFilter } : {}) },
+        orderBy,
+        take: LEADS_PAGE_SIZE,
+      })
+    : []
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-8">
@@ -67,8 +86,19 @@ export default async function LeadsPage({
           Export CSV
         </a>
       </div>
-      {business && <KPICards businessId={business.id} period={period} />}
-      {trend.length > 0 && <TrendChart data={trend} />}
+
+      {business && (
+        <Suspense fallback={<KPICardsSkeleton />}>
+          <KPICards businessId={business.id} period={period} />
+        </Suspense>
+      )}
+
+      {business && (
+        <Suspense fallback={<TrendSkeleton />}>
+          <TrendChartAsync businessId={business.id} />
+        </Suspense>
+      )}
+
       <LeadsTable
         leads={leads}
         currentSort={sortField}
